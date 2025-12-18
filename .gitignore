@@ -1,0 +1,13 @@
+
+build/*
+.gitignore
+.gradle
+gradle*
+*.gradle
+*.class
+*.iml
+*.ipr
+*/pom.xml
+*/.idea
+.idea/*
+

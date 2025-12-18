@@ -1,0 +1,20 @@
+
+Using MySQL:
+
+* Use mysqld to start the DB (may need to create “data” dir under installation?)
+  - Can update Windows Services to start MySQL server automatically
+* Log in with: mysql -u USER -p (interactive prompt for password)
+  - Can use root or kkraft for user (password is old MCN one with substitutions)
+  - I had to use the Windows cmd shell (Bash shell hung)
+* MySQL port is 3306
+* MsSQL commands:
+  - show databases;
+  - create database DB_NAME
+  - select user from mysql.user;
+  - use DB_NAME; (to switch databases)
+  - desc TABLE_NAME;
+  - User-related commands: https://www.mysqltutorial.org/mysql-show-users
+* MySQL 8.0 reference doc: https://dev.mysql.com/doc/refman/8.0/en
+* My test DB is test_kk1
+* Do “Register MySQL Server” in IJ (under Databases)? Probably only for Ultimate edition
+* Not sure how to use MySQL Workbench
