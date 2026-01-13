@@ -1,37 +1,44 @@
+# TODO OR NOTES OR BOTH
 
 Eventually this should be a proper README file with instructions and documentation.
 For now it is just project notes.
 
-To do items:
+## To do items
+
 * Must fill out the Javadoc coverage!
 * Remove the CategoryList class?
 * There is an issue with categories since the note categories are tightly coupled
   with the category lists in the main program
 
-Hibernate notes:
+## Hibernate
+
+### Hibernate notes
+
 * Use Hibernate version 6?
 * Figure out proper Hibernate annotations for classes and properties
 * May want to use the CamelCaseToUnderscoresNamingStrategy
 * Map types require a special workaround for DB mapping in hibernate?
 * Per Thorben: Model your many-to-many associations as a Set, NOT List
-  - Also see "Fetching a DTO With a To-Many Association"
+  * Also see "Fetching a DTO With a To-Many Association"
 * Per Thorben: The JPA spec requires a default (no-arg) constructor
-  - And a non-final, public class, annotated with @Entity
-  - This is no longer a requirement with Hibernate 6?
+  * And a non-final, public class, annotated with @Entity
+  * This is no longer a requirement with Hibernate 6?
 * Per Thorben: The InheritanceType.SINGLE_TABLE provides the best performance
   for most domain models. It tells your persistence provider to store all
   entities of an inheritance hierarchy in the same database table and
   stores the entity type in a discriminator column.
-  - But only fields from the base class can be required?!
-  - May not be the appropriate mapping, in that case
+  * But only fields from the base class can be required?!
+  * May not be the appropriate mapping, in that case
 
-Hibernate docs:
-* https://docs.jboss.org/hibernate/orm/5.4/quickstart/html_single/#hibernate-gsg-tutorial-basic-config
-* https://docs.jboss.org/hibernate/orm/5.4/javadocs
-* https://stackoverflow.com/questions/735536/java-persistence-in-database
-* http://burnignorance.com/java-web-development-tips/store-java-class-object-in-database
+### Hibernate docs
 
-Design considerations:
+* <https://docs.jboss.org/hibernate/orm/5.4/quickstart/html_single/#hibernate-gsg-tutorial-basic-config>
+* <https://docs.jboss.org/hibernate/orm/5.4/javadocs>
+* <https://stackoverflow.com/questions/735536/java-persistence-in-database>
+* <http://burnignorance.com/java-web-development-tips/store-java-class-object-in-database>
+
+## Design considerations:
+
 * Look into Vue for the frontend
 * GitHub can host web pages!
 * Use MLab with MongoDB for DB layer?
