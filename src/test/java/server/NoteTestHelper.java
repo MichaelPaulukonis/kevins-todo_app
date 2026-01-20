@@ -21,6 +21,7 @@ public class NoteTestHelper {
 
     protected static Note createGenericTestNote(String baseName) {
         noteNumber++;
+        // ToDo: MP: Use a GUID instead of adding noteNumber?
         String name = (baseName == null ? "Test Note" : baseName) + " #" + noteNumber;
         return new Note(name, "Description for " + name);
     }

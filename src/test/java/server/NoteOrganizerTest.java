@@ -13,6 +13,8 @@ import static org.junit.jupiter.api.Assertions.*;
 // Add multiple notes to a category at a specified position
 // Test standard Note categories (set up in initialize())
 // Test adding duplicate Category or Tags
+// ToDo: MP objects to testing the TestOrganizer instead of the NoteOrganizer
+//  Suggests creating a new NoteOrganizer before each test (removing the need for clear() methods)
 public class NoteOrganizerTest {
     private static final TestOrganizer main = new TestOrganizer();
     private static final Map<CategoryTag, Integer> tagTracker = new HashMap<>();
@@ -43,10 +45,12 @@ public class NoteOrganizerTest {
     }
 
     @Test
+    // Remove the only note in the list
     public void removeOnlyNote() {
         Note newNote = NoteTestHelper.createGenericTestNote();
         main.addNote(newNote);
         Note deletedNote = main.deleteNote(newNote);
+        // ToDo: MP suggests using notes.size() directly and losing main.numberOfNotes()
         assertEquals(0, main.numberOfNotes(), "Number of notes");
         assertSame(newNote, deletedNote, "Note removed");
     }
@@ -59,6 +63,8 @@ public class NoteOrganizerTest {
     }
 
     @Test
+    // ToDo: Verify that the SAME notes are being deleted that were added
+    //   What this is REALLY testing is removing the note at index 0
     public void removeMultipleNotes() {
         int expectedCount = 3;
         main.addTestNotes(expectedCount);
@@ -84,6 +90,7 @@ public class NoteOrganizerTest {
     public void removeOneOfMultipleNotes() {
         int initialNoteCount = 5;
         main.addTestNotes(initialNoteCount);
+        // ToDo: Verify that I deleted the RIGHT note
         main.deleteNote(0);
         assertEquals(initialNoteCount - 1, main.numberOfNotes(), "Number of remaining notes after deletion");
     }
