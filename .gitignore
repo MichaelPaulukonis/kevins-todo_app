@@ -1,6 +1,4 @@
-
 build/*
-.gitignore
 .gradle
 gradle*
 *.gradle
@@ -11,4 +9,12 @@ gradle*
 */.idea
 .idea/*
 
+.env.example
+
+## various extenions and agent litter
 .specstory/
+.gemini/
+.github/
+.kiro/
+.taskmaster/
+.vscode/
