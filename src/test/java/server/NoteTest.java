@@ -8,6 +8,7 @@ import org.junit.jupiter.api.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 public class NoteTest {
+    // ToDo: MP: Why are these test objects static?
     private static final int defaultElementCount = 5;
     private static Note noteWithRandomElements;
     private static Note emptyTestNote;
@@ -31,6 +32,8 @@ public class NoteTest {
     }
 
     @Test
+    // ToDo: MP points out that this implicitly tests the items ORDER as well
+    //  Need separate tests for ordering
     public void createNoteWithEachElementType() throws MalformedURLException {
         emptyTestNote.addElement(new Contact().setName("Contact1")
                 .setPhoneNumber("234-5678").setAddress1("123 4th St.").setCity("Menlo Park"));
@@ -51,13 +54,13 @@ public class NoteTest {
         assertSame(emptyTestNote.getElement(0), emptyTestNote.getElement(Contact.class, 0),
                 "Expected Contact type at position 0");
         assertSame(emptyTestNote.getElement(1), emptyTestNote.getElement(MediaItem.class, 0),
-                "Expected Contact type at position 0");
+                "Expected MediaItem type at position 1");
         assertSame(emptyTestNote.getElement(2), emptyTestNote.getElement(Price.class, 0),
-                "Expected Contact type at position 0");
+                "Expected Price type at position 2");
         assertSame(emptyTestNote.getElement(3), emptyTestNote.getElement(Link.class, 0),
-                "Expected Contact type at position 0");
+                "Expected Link type at position 3");
         assertSame(emptyTestNote.getElement(4), emptyTestNote.getElement(EventInfo.class, 0),
-                "Expected Contact type at position 0");
+                "Expected EventInfo type at position 4");
     }
 
     @Test
@@ -65,16 +68,18 @@ public class NoteTest {
         emptyTestNote.addElement(subNote1);
         emptyTestNote.addElement(subNote2);
 
-        System.out.println(emptyTestNote);
+        // System.out.println(emptyTestNote);
         assertSame(emptyTestNote.getElement(0), emptyTestNote.getElement(Note.class, 0),
                 "Expected Contact type at position 0");
         assertSame(emptyTestNote.getElement(1), emptyTestNote.getElement(Note.class, 1),
                 "Expected Contact type at position 0");
+        // ToDo: Assert size of sub-note list = 2
     }
 
     @Test
+    // ToDo: MP suggests callingClearRemovesAllElements()
     public void removeAllElements() {
-        System.out.println(noteWithRandomElements);
+        // System.out.println(noteWithRandomElements);
         assertEquals(defaultElementCount, noteWithRandomElements.getElements().size(), "Number of Note elements");
         noteWithRandomElements.getElements().clear();
         assertEquals(0, noteWithRandomElements.getElements().size(), "Number of Note elements");
@@ -103,6 +108,8 @@ public class NoteTest {
     }
 
     @Test
+    // ToDo: Test this on a note with multiple sub-notes of different types (e.g. noteWithRandomElements)
+    // ToDo: MP suggests gettingNonExistentNoteTypeThrowsError()
     public void tryGettingInvalidClassTypeFromElementList() {
         Exception ex = assertThrows(RuntimeException.class, () -> emptyTestNote.getElement(Note.class, 0));
         // System.out.println("Exception message: " + ex.getMessage());

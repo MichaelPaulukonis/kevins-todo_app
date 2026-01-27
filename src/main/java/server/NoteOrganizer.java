@@ -47,14 +47,17 @@ public class NoteOrganizer {
     public void addNoteToCategory(String name, Note newNote, int position) {
         addNotesToCategory(name, List.of(newNote), position);
     }
+
     public void addNoteToCategories(Set<String> categories, Note newNote) {
         categories.forEach(cat -> addNoteToCategory(cat, newNote));
         newNote.addCategories(categories);
     }
+
     // Add Notes at the front by default
     public void addNotesToCategory(String name, List<Note> notes) {
         addNotesToCategory(name, notes, 0);
     }
+    
     public void addNotesToCategory(String name, List<Note> notes, int position) {
         if (!categories.containsKey(name)) {
             addCategory(name);

@@ -9,6 +9,11 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 // ToDo: Figure out JUnit assertThat() with matchers (and replace assertTrue())
+// ToDo: Switch to TestNG Test annotations (instead of JUnit)?
+//   If so use the description attribute to document the tests
+// ToDo: Is it an issue that tags and categories are handled separately but are conceptually the same?
+// ToDo: Per MP should categories be statically defined and Tags be user defined (i.e. switch them)?
+// ToDo: Get the Gradle stuff figured out (why the test config claims to be effed up)
 // Confirm that new notes and categories (and notes in categories) are added at the end
 // Add multiple notes to a category at a specified position
 // Test standard Note categories (set up in initialize())
@@ -111,6 +116,7 @@ public class NoteOrganizerTest {
     }
 
     @Test
+    // ToDo: Is this dependent on previous test results?
     public void tryRemovingInvalidNoteByIndex() {
         Exception ex = assertThrows(RuntimeException.class, () -> main.deleteNote(1));
         assertEquals("Invalid index (1) for note list (size 0)", ex.getMessage(), "Exception message");
@@ -138,6 +144,7 @@ public class NoteOrganizerTest {
     }
 
     @Test
+    // This is also removing the *only* category?
     public void removeLastCategory() {
         main.addCategory(defaultCategoryName);
         main.deleteCategory(defaultCategoryName);
@@ -349,6 +356,7 @@ public class NoteOrganizerTest {
 
     // ====================================== Helper Methods ======================================
     // ToDo: Move these to NoteTestHelper
+    // ToDo: Change this to a builder?
     public void createNotesWithTags(int numberOfNotes) { createNotesWithTags(numberOfNotes, null, main.getNotes()); }
     public void createNotesWithTags(int numberOfNotes, CategoryTag tag) {
         createNotesWithTags(numberOfNotes, tag, main.getNotes());
