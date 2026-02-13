@@ -9,7 +9,7 @@ gradle*
 */.idea
 .idea/*
 
-.env.example
+.env
 
 ## various extenions and agent litter
 .specstory/
