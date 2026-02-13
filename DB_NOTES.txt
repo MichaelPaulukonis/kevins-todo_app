@@ -1,4 +1,6 @@
 
+ToDo: Transfer this to a README file?
+
 Using MySQL:
 
 * Use mysqld to start the DB (may need to create “data” dir under installation?)
@@ -18,3 +20,15 @@ Using MySQL:
 * My test DB is test_kk1
 * Do “Register MySQL Server” in IJ (under Databases)? Probably only for Ultimate edition
 * Not sure how to use MySQL Workbench
+
+Using PostgreSQL:
+
+* winpty psql -U USER [promted for password]
+* Creating a DB:  winpty createdb -U USER DB_NAME
+* Listing the DBs: winpty psql -U USER -l (add -p for port)
+* Starting the DB:  pg_ctl restart -D "C:/Program Files/PostgreSQL/18/data"
+* PostgreSQL config files are located in the data directory:
+  postgresql.conf, pg_hba.conf
+* Check for port in use: netstat -ano | grep PORT
+* Check if server is running on port: pg_isready -p PORT
+

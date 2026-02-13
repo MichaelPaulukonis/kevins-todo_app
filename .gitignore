@@ -8,6 +8,8 @@ gradle*
 */pom.xml
 */.idea
 .idea/*
+# Config files with sensitive data that can't be checked in
+*.dev
 
 .env
 
