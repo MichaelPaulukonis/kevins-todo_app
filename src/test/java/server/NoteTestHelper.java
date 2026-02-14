@@ -9,7 +9,7 @@ public class NoteTestHelper {
     private static final Random rand = new Random();
     private static final int defaultElementCount = 5;
     private static int noteNumber = 0;
-
+    
     // ======================== Note Test Helper Methods ======================
     public static void resetNoteNumber() {
         noteNumber = 0;
@@ -57,6 +57,12 @@ public class NoteTestHelper {
         }
     }
 
+    // ToDo: Replace these methods with a NoteBuilder class?
+    //  * Will thi work with polymorphism? Need a factory instead?
+    //  * Define a constructor taking required parameters (title)
+    //  * Define methods for adding other parameters
+    //  * Define a build() method that calls the constructor and returns the note object
+    //    Or maybe a factory class?
     protected static Note createGenericTestNoteWithRandomElements() {
         return createGenericTestNoteWithRandomElements(null, defaultElementCount);
     }

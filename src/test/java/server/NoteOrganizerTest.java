@@ -1,11 +1,9 @@
 package server;
 
-import org.junit.jupiter.api.*;
 import server.categories.CategoryTag;
 import server.categories.MediaType;
-
+import org.junit.jupiter.api.*;
 import java.util.*;
-
 import static org.junit.jupiter.api.Assertions.*;
 
 // ToDo: Figure out JUnit assertThat() with matchers (and replace assertTrue())

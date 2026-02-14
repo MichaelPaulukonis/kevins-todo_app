@@ -35,6 +35,7 @@ public class Note extends NoteElement<Note> {
         super(null);
     }
 
+    // ToDo: Replace this with a NoteBuilder class?
     public Note(String title, String desc) {
         super(title, desc);
         elements = new ArrayList<>();
