@@ -6,14 +6,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 // Includes Person, Company etc.
+// ToDo: Combine this with Entity (since only Contact extends it)?
 public class Contact extends Entity {
     private String firstName;
     private String lastName;
     private ArrayList<Address> addresses;
     private ArrayList<Phone> phoneNumbers;
 
+    // ToDo: Replace this with builder pattern?
     public Contact(String firstName, String lastName, String fullName, String description, EntityType type) {
-        super(fullName, description, type);
+        // ToDo: The fullName kludge is ugly - see if I can clean it up
+        //  Maybe having Contact extend Note is a bad idea?
+        super(fullName == null || fullName.isEmpty() ? firstName + " " + lastName : fullName, description, type);
         this.firstName = firstName;
         this.lastName = lastName;
         this.addresses = new ArrayList<>();

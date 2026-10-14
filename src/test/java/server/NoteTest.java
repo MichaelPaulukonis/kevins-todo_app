@@ -37,10 +37,40 @@ public class NoteTest {
         noteWithRandomElements = createGenericTestNoteWithRandomElements(defaultElementCount);
     }
 
+    // ToDo: Add a simple test for just one Note?
     // ToDo: Add test for each Note type
 
     @Test
-    //  Need separate tests for ordering
+    public void noteUsesDescriptionForNameIfNameIsNull() {
+        String description = "Description for note with no name";
+        Note note = new Note(null, description);
+        assertEquals(description, note.getName(), "Null Note name is set to description");
+        // ToDo: Not sure how the case below should behave
+        // assertEquals("Description for note with no name", note.getDescription(), "Note description");
+    }
+
+    @Test
+    public void noteUsesDescriptionForNameIfNameIsEmpty() {
+        String description = "Description for note with empty name";
+        Note note = new Note("", description);
+        assertEquals(description, note.getName(), "Empty Note name is set to description");
+        // ToDo: Not sure how the case below should behave
+        // assertEquals("Description for note with no name", note.getDescription(), "Note description");
+    }
+
+    @Test
+    public void noteCreationFailsIfBothNoteAndDescriptionAreUnset() {
+        String[] names = { null, "" };
+        String[] descriptions = { null, "" };
+        for (String name : names) {
+            for (String description : descriptions) {
+                assertThrows(IllegalArgumentException.class, () -> new Note(name, description));
+            }
+        }
+    }
+
+    @Test
+    // ToDo: Need separate tests for ordering
     public void createNoteWithEachElementTypeAndVerifyResult() throws MalformedURLException {
         emptyTestNote.addChildNote(Contact.newContact("First1", "Last1", null).addAddress(
                 new Address().setPhoneNumber("234-5678").setAddress1("123 4th St.").setCity("Menlo Park")));
@@ -48,7 +78,7 @@ public class NoteTest {
                 new Entity("Fanny", null, Entity.EntityType.ARTIST)).setType(MediaType.SONG));
         // emptyTestNote.addElement(new Price(5.00));
         emptyTestNote.addChildNote(new Link("Google", "http://google.com"));
-        emptyTestNote.addChildNote(new ScheduleItem("Deadline", null, "2020-06-12 00:00:00"));
+        emptyTestNote.addChildNote(new ScheduleItem("Deadline", null, "2020-06-12 00:00:00 AM"));
         emptyTestNote.addChildNote(new Note("Note1"));
         assertEquals(5, emptyTestNote.getChildNotes().size(), "Number of child notes added");
 

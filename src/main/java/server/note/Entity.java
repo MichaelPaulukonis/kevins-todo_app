@@ -8,6 +8,7 @@ public class Entity extends Note {
     public enum EntityType { PERSON, BUSINESS, ORGANIZATION, NON_PROFIT, ARTIST };
     private final EntityType type;
     // ToDo: Define getter/setter for contactInfo
+    // ToDo: Move addresses and phoneNumbers here?
     private Address address;
 
     public Entity(String name, String description, EntityType type) {

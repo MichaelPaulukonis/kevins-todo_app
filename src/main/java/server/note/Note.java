@@ -9,7 +9,6 @@ import java.util.ArrayList;
  */
 // ToDo: Needs to be mapped to DB with Hibernate annotations
 public class Note extends NoteBase {
-    private Boolean completed;
     protected ArrayList<NoteBase> childNotes;   // ToDo: Rename "children"?
     protected ArrayList<Link> links;
 
@@ -30,8 +29,6 @@ public class Note extends NoteBase {
     public Note removeChildNote(NoteBase childNote) { childNotes.remove(childNote); return this; }
     public Note addLink(Link link) { links.add(link); return this; }
     public boolean hasChildNotes() { return !childNotes.isEmpty(); }
-    public boolean getCompleted() { return completed != null && completed; }
-    public Note setCompleted(boolean isCompleted) { completed = isCompleted; return this; }
 
     // ToDo: Add more info to this (e.g. categories, tags, elements)?
     // ToDo: Add loop over elements
