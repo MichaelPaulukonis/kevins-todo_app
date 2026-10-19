@@ -89,7 +89,7 @@ public class NoteOrganizer {
         categories.get(name).add(newNote);
     }
 
-    public void addNoteToCategories(NoteBase newNote) {
+    private void addNoteToCategories(NoteBase newNote) {
         newNote.getCategories().forEach(cat -> addNoteToCategory(cat, newNote));
     }
 

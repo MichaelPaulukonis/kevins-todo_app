@@ -26,6 +26,7 @@ public class SearchCriteria {
     // Name match is case-insensitive
     public SearchCriteria setNameMatch(String nameMatch) {
         this.nameMatch = nameMatch;
+        // ToDo: Only set matchPattern if doPatternMatch == true?
         this.matchPattern = nameMatch == null || nameMatch.isEmpty() ?
                 null : Pattern.compile(nameMatch, Pattern.CASE_INSENSITIVE);
         return this; }

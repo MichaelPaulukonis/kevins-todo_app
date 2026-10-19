@@ -9,7 +9,6 @@ import java.util.Set;
  */
 // This can be used for leaf-type notes with no child elements
 public class NoteBase {
-    // ToDo: Name should be required (not null/empty) but not final because it can be changed
     protected String name;
     protected String description;
     // ToDo: Should a child Note inherit its parent's categories (maybe conceptually but not literally)?
@@ -19,12 +18,9 @@ public class NoteBase {
     private Boolean completed;
 
     // ToDo: Turn this into a builder as well
-    // ToDo: Throw exception if name null/empty
     public NoteBase(String newName, String newDescription) {
-        this.name = newName != null && !newName.isEmpty() ? newName : newDescription;
-        if (this.name == null || this.name.isEmpty()) {
-            throw new IllegalArgumentException("Cannot create a Note with no name or description");
-        }
+        // ToDo: Add validation method for name and description (i.e. not null/empty)
+        this.name = setName(newName, newDescription);
         // ToDo: Set description to empty if we use it for the name?
         this.description = newDescription;
         this.categories = new HashSet<>();
@@ -32,12 +28,25 @@ public class NoteBase {
         this.completed = false;
     }
 
+    // Enforce that either name of description must be provided
+    private static String setName(String newName, String newDescription) {
+        if (newName == null || newName.isEmpty()) {
+            if (newDescription == null || newDescription.isEmpty()) {
+                throw new IllegalArgumentException("Must provide a name or description for a note");
+            }
+            return newDescription;
+        }
+        return newName;
+    }
+
     public String getName() { return name; }
-    public NoteBase setName(String newName) { this.name = newName; return this; }
+    // ToDo: Move name validation to the constructor and throw an exception if for null/empty name?
+    public NoteBase setName(String newName) { this.name = setName(newName, description); return this; }
     public String getDescription() { return description; }
     public NoteBase setDescription(String newDescription) { description = newDescription; return this; }
     // ToDo: Add Javadoc
     public Set<String> getCategories() { return categories; }
+    // Note that these category methods do NOT update the NoteOrganizer category tracker!
     public NoteBase addCategory(String category) { categories.add(category); return this; }
     public NoteBase removeCategory(String cat) { categories.remove(cat); return this; }
     public NoteBase addCategories(Set<String> cats) { categories.addAll(cats); return this; }
@@ -51,5 +60,5 @@ public class NoteBase {
     public boolean hasAnyCategory(Set<String> cats) {
         return cats == null || cats.isEmpty() || cats.stream().anyMatch(cat -> categories.contains(cat));
     }
-    // ToDo: Support toString() method
+    // ToDo: Support toString() method?
 }
