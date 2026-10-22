@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Java/Gradle backend for a note-taking / to-do app ("Kevin's Todo App", Gradle project name `NoteElements`). Fork of `kkraft714/todo_app` (see `git remote -v`: `origin` is this fork, `upstream` is the original; sync with `git pull upstream main` - plain merge (`git pull --no-rebase upstream main`, or set `git config pull.rebase false` once), not `--ff-only`, since the fork carries its own commits like this file). Early prototype - no REST/UI layer, and no persistence of the domain model yet (Hibernate is configured but no classes are mapped). See `todo_app_spec.md` for the product spec and intended UI/data model, and `README.md` for open design questions.
+Java/Gradle backend for a note-taking / to-do app ("Kevin's Todo App", Gradle project name `NoteElements`). Canonical repo is `kkraft714/todo_app`; Michael works from a fork (`MichaelPaulukonis/kevins-todo_app`, with `upstream` pointing at Kevin's). The fork can carry its own commits, so sync it with a plain merge (`git pull --no-rebase upstream main`, or set `git config pull.rebase false` once), not `--ff-only`. Early prototype - no REST/UI layer, and no persistence of the domain model yet (Hibernate is configured but no classes are mapped). See `todo_app_spec.md` for the product spec and intended UI/data model, and `README.md` for open design questions.
 
 ## Commands
 
