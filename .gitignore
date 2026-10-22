@@ -1,6 +1,5 @@
 build/*
 .gradle
-gradle*
 *.gradle
 *.class
 *.iml
