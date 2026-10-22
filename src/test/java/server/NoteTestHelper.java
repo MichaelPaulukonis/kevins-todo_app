@@ -3,7 +3,11 @@ package server;
 import server.categories.MediaType;
 import server.element.Address;
 import server.note.*;
+
+import java.time.LocalDateTime;
 import java.util.*;
+
+import static server.note.Contact.*;
 
 public class NoteTestHelper {
     private static final Random rand = new Random();
@@ -39,7 +43,7 @@ public class NoteTestHelper {
         return switch (elementTypeIndex) {
             case 0 -> {
                 contactCount++;
-                yield Contact.newContact("First", "Contact" + contactCount, null).addAddress(
+                yield newPerson("First", "Contact" + contactCount).addAddress(
                         new Address().setPhoneNumber("345-5679").setAddress1("222 2nd St.").setCity("Menlo Park"));
             }
             case 1 -> {
@@ -53,7 +57,7 @@ public class NoteTestHelper {
             }
             case 3 -> {
                 eventCount++;
-                yield new ScheduleItem("Event #" + eventCount, null, "2020-07-03 00:00:00");
+                yield new ScheduleItem("Event #" + eventCount, null, "2020-07-03 00:00:00 AM");
             }
             case 4 -> {
                 noteCount++;
@@ -135,6 +139,27 @@ public class NoteTestHelper {
         NoteBase newNote = NoteTestHelper.createGenericTestNote().addCategory(newCat);
         // System.out.println(newNote);
         main.addNote(newNote);
+    }
+
+    // Add 4 ScheduleItem notes in non-date order (should be automatically sorted)
+    public static void createScheduleItemTestBed(NoteOrganizer main) {
+        main.addNote(new ScheduleItem("Event 4", null, "2020-07-03 10:00:01 AM"));
+        main.addNote(new ScheduleItem("Event 1", null, "2020-07-01 09:00:00 PM"));
+        main.addNote(new ScheduleItem("Event 3", null, "2020-07-03 10:00:00 AM"));
+        main.addNote(new ScheduleItem("Event 2", null, "2020-07-02 05:00:00 PM"));
+        main.addNote(new ScheduleItem("Event 5", null, "2020-07-03 10:00:01 AM"));
+    }
+
+    // ToDo: Add negative test case for this (ScheduleItem list out of order)?
+    public static boolean verifyScheduleItemOrder(List<ScheduleItem> schedule) {
+        LocalDateTime lastDate = LocalDateTime.MAX;
+        for (ScheduleItem item : schedule) {
+            if (lastDate.isBefore(item.getDate())) {
+                return false;
+            }
+            lastDate = item.getDate();
+        }
+        return true;
     }
 
     // ToDo: Document this method (I think the idea is to return notes with BOOK, FILM, both, or no tags)

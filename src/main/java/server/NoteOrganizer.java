@@ -14,10 +14,10 @@ import java.util.*;
 //   E.g. user-defined versus internal categories
 // ToDo: Add DEBUG logging (for exception context)
 // ToDo: Can (or should) this class be a static singleton (how would that work with Hibernate)?
+// ToDo: Add searchForContacts() API (can just search with noteType Contact)?
 public class NoteOrganizer {
     // Note: using List because Set isn't ordered
     protected List<NoteBase> notes;   // This structure defines the note tree
-    protected List<Contact> contacts;
     protected Map<Class<? extends NoteBase>, List<NoteBase>> noteTypes;
     protected Map<String, Set<NoteBase>> categories;
     // ToDo: Create one universal logger for the whole app?
@@ -25,7 +25,6 @@ public class NoteOrganizer {
 
     public NoteOrganizer() {
         notes = new ArrayList<>();
-        contacts = new ArrayList<>();
         noteTypes = new HashMap<>();
         categories = new HashMap<>();
     }
@@ -41,6 +40,9 @@ public class NoteOrganizer {
         // ToDo: Return copies instead of the actual internal category list?
         return categories.get(name) != null ? categories.get(name) : new HashSet<>();
     }
+    public List<NoteBase> getNotesForType(Class<? extends NoteBase> type) {
+        return noteTypes.get(type) != null ? noteTypes.get(type) : new ArrayList<>();
+    }
 
     public void addNote(NoteBase newNote) {
         notes.add(newNote);
@@ -53,14 +55,21 @@ public class NoteOrganizer {
     }
 
     private void updateTrackerProperties(NoteBase newNote) {
-        noteTypes.computeIfAbsent(newNote.getClass(), cls -> new ArrayList<>()).add(newNote);
-        if (newNote instanceof ScheduleItem) {
-            // ToDo: Order noteTypes.get(ScheduleItem.class) list by timestamp
-        }
-        if (newNote instanceof Contact) {
-            contacts.add((Contact) newNote);
-        }
+        updateNoteTypes(newNote);
         addNoteToCategories(newNote);
+    }
+
+    public void addScheduleItem(ScheduleItem item) {
+        int index = 0;
+        List<ScheduleItem> schedule = noteTypes.get(ScheduleItem.class).stream().map(n -> (ScheduleItem)n).toList();
+        while (index < schedule.size() && schedule.get(index).getDate().isAfter(item.getDate())) { index++; }
+        noteTypes.get(ScheduleItem.class).add(index, item);
+    }
+
+    // ToDo: This is kind of complicated: Need to sort contacts by last name but organizations by name
+    public void addContact(Contact contact) {
+        // ToDo: Order noteTypes.get(Contact.class) alphabetically (just adding Contact for now)
+        noteTypes.get(Contact.class).add(contact);
     }
 
     public void addNotes(List<NoteBase> newNotes) {
@@ -80,7 +89,7 @@ public class NoteOrganizer {
         categories.get(name).add(newNote);
     }
 
-    public void addNoteToCategories(NoteBase newNote) {
+    private void addNoteToCategories(NoteBase newNote) {
         newNote.getCategories().forEach(cat -> addNoteToCategory(cat, newNote));
     }
 
@@ -92,6 +101,19 @@ public class NoteOrganizer {
         notes.forEach(nb -> addNoteToCategory(name, nb));
     }
 
+    private void updateNoteTypes(NoteBase newNote) {
+        if (!noteTypes.containsKey(newNote.getClass())) {
+            noteTypes.put(newNote.getClass(), new ArrayList<>());
+        }
+        if (newNote instanceof ScheduleItem) {
+            addScheduleItem((ScheduleItem)newNote);
+        }
+        else if (newNote instanceof Contact) {
+            addContact((Contact)newNote);
+        }
+        else { noteTypes.get(newNote.getClass()).add(newNote); }
+    }
+
     public NoteBase deleteNote(int index) {
         checkForValidNoteIndex(index);
         return deleteNote(notes.get(index));
@@ -101,9 +123,6 @@ public class NoteOrganizer {
     public NoteBase deleteNote(NoteBase note) {
         checkForValidNoteObject(note);
         noteTypes.get(note.getClass()).remove(note);
-        if (note instanceof Contact) {
-            contacts.remove(note);
-        }
         removeNoteFromAllCategories(note);
         notes.remove(note);
         return note;
@@ -123,6 +142,11 @@ public class NoteOrganizer {
         }
         categories.get(name).forEach(n -> n.getCategories().remove(name));
         categories.remove(name);
+    }
+
+    public List<ScheduleItem> getSchedule() {
+        List<NoteBase> schedule = noteTypes.get(ScheduleItem.class);
+        return schedule != null ? schedule.stream().map(n -> (ScheduleItem)n).toList() : new ArrayList<>();
     }
 
     // ToDo: Add version that takes a note index? Also return the note?
@@ -153,7 +177,7 @@ public class NoteOrganizer {
     // Search from the main note list
     // ToDo: Should this return Set or List (if a note is in the list more than once should we return it multiple times)?
     public List<NoteBase> findMatchingNotes(SearchCriteria criteria) {
-        List<NoteBase> searchNotes = criteria.hasCategories() ? criteria.categories.stream()
+        List<NoteBase> searchNotes = criteria.hasCategories() ? criteria.getCategories().stream()
                 .flatMap(cat -> getNotesForCategory(cat).stream()).distinct().toList() : notes;
         // ToDo: Also filter on class type?
         return findMatchingNotes(searchNotes, criteria);

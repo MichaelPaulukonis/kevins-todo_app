@@ -1,18 +1,16 @@
 package server;
 
+import server.categories.MediaType;
 import server.note.*;
 import org.junit.jupiter.api.*;
 
+import java.time.LocalDateTime;
 import java.util.*;
+
 import static server.NoteTestHelper.*;
+import static server.note.Contact.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-// ToDo: Add tests:
-//  - Remove note by object and index
-//  - Confirm that new notes and categories (and notes in categories) are added at the end
-//  - Add multiple notes to a category at a specified position (why do we need this test?)?
-//  - Test standard Note categories (set up in initialize())
-//  - Test adding duplicate Categories (should have no effect?)
 // ToDo: Figure out JUnit assertThat() with matchers (and replace assertTrue())
 // ToDo: Switch to TestNG Test annotations and framework (instead of JUnit)?
 //   If so use the description attribute to document the tests
@@ -37,7 +35,56 @@ public class NoteOrganizerTest extends TestBase {
         assertEquals(expectedCount, main.getNotes().size(), "Number of notes");
     }
 
-    // ToDo: Add test for addNoteWithCategories() (and verify categories are updated)
+    @Test
+    public void addScheduleItem() {
+        main.addNote(new ScheduleItem("Event 1", null, "2020-07-01 09:00:00 PM"));
+        assertEquals(1, main.getNotes().size(), "Total number of notes");
+        assertEquals(1, main.getNotesForType(ScheduleItem.class).size(), "Number of ScheduleItem notes");
+    }
+
+    @Test
+    public void scheduleItemsAreAddedInTimestampOrder() {
+        createScheduleItemTestBed(main);
+        assertTrue(verifyScheduleItemOrder(main.getSchedule()), "Schedule items are in timestamp order");
+    }
+
+    @Test
+    public void mostRecentScheduleItemIsAddedAtFront() {
+        createScheduleItemTestBed(main);
+        ScheduleItem newItem = new ScheduleItem("Most Recent Event", null, LocalDateTime.MAX);
+        main.addNote(newItem);
+        assertTrue(verifyScheduleItemOrder(main.getSchedule()), "Schedule items are in timestamp order");
+        assertSame(newItem, main.getSchedule().getFirst(), "Most recent schedule item is at the front");
+    }
+
+    @Test
+    public void leastRecentScheduleItemIsAddedAtEnd() {
+        createScheduleItemTestBed(main);
+        ScheduleItem newItem = new ScheduleItem("Least Recent Event", null, LocalDateTime.MIN);
+        main.addNote(newItem);
+        assertTrue(verifyScheduleItemOrder(main.getSchedule()), "Schedule items are in timestamp order");
+        assertSame(newItem, main.getSchedule().getLast(), "Least recent schedule item is at the end");
+    }
+
+    @Test
+    public void callGetScheduleWithNoScheduleItemsAdded() {
+        assertEquals(0, main.getSchedule().size(), "Number of schedule items");
+    }
+
+    @Test
+    public void addProduct() {
+        main.addNote(new Product("Blind Alley", null,
+                new Entity("Fanny", "Rock Band",  Entity.EntityType.ARTIST)).setType(MediaType.SONG));
+        assertEquals(1, main.getNotes().size(), "Total number of notes");
+        assertEquals(1, main.getNotesForType(Product.class).size(), "Number of Product notes");
+    }
+
+    @Test
+    public void addContact() {
+        main.addNote(newPerson("Jane", "Doe"));
+        assertEquals(1, main.getNotes().size(), "Total number of notes");
+        assertEquals(1, main.getNotesForType(Contact.class).size(), "Number of Contact notes");
+    }
 
     @Test
     // Remove the only note in the list
@@ -95,6 +142,17 @@ public class NoteOrganizerTest extends TestBase {
             assertFalse(main.getNotesForCategory(name).contains(newNote),
                     "Category '" + name + "' contains note '" + newNote.getName() + "'");
         }
+    }
+
+    @Test
+    public void deleteNoteRemovesItFromNoteTypes() {
+        Contact contact = newPerson("Jane", "Doe");
+        main.addNote(contact);
+        main.addNote(new Note("Plain note"));
+        assertEquals(List.of(contact), main.noteTypes.get(Contact.class), "Contacts tracked by type");
+        main.deleteNote(contact);
+        assertTrue(main.noteTypes.get(Contact.class).isEmpty(), "Contact removed from type list");
+        assertEquals(1, main.getNotes().size(), "Number of notes");
     }
 
     @Test
@@ -241,6 +299,14 @@ public class NoteOrganizerTest extends TestBase {
         assertEquals("Unable to locate note '" + newNote.getName() + "' in category '" + defaultCategoryName + "'",
                 ex.getMessage(), "Exception message");
     }
+
+    // ToDo: Potential tests to add:
+    //  - Added tests for setting the completed property in ScheduleItem
+    //  - Add tests for the tracker properties in noteTypes (e.g. ScheduleItem, Contact)?
+    //  - Test internal Note categories (set up in initialize())
+    //  - Remove note by object and index
+    //  - Test adding duplicate Categories (should have no effect?)
+    //  - Confirm that new notes and categories (and notes in categories) are added at the end
 
     // @Test
     public void testTemplate() {

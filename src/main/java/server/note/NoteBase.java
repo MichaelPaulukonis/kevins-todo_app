@@ -15,24 +15,44 @@ public class NoteBase {
     // ToDo: Do I really need to track categories here?
     protected Set<String> categories;
     private final LocalDateTime created;
+    private Boolean completed;
 
+    // ToDo: Turn this into a builder as well
     public NoteBase(String newName, String newDescription) {
-        this.name = newName;
+        // ToDo: Add validation method for name and description (i.e. not null/empty)
+        this.name = setName(newName, newDescription);
+        // ToDo: Set description to empty if we use it for the name?
         this.description = newDescription;
         this.categories = new HashSet<>();
         this.created = LocalDateTime.now();
+        this.completed = false;
+    }
+
+    // Enforce that either name of description must be provided
+    private static String setName(String newName, String newDescription) {
+        if (newName == null || newName.isEmpty()) {
+            if (newDescription == null || newDescription.isEmpty()) {
+                throw new IllegalArgumentException("Must provide a name or description for a note");
+            }
+            return newDescription;
+        }
+        return newName;
     }
 
     public String getName() { return name; }
-    public NoteBase setName(String newName) { this.name = newName; return this; }
+    // ToDo: Move name validation to the constructor and throw an exception if for null/empty name?
+    public NoteBase setName(String newName) { this.name = setName(newName, description); return this; }
     public String getDescription() { return description; }
     public NoteBase setDescription(String newDescription) { description = newDescription; return this; }
     // ToDo: Add Javadoc
     public Set<String> getCategories() { return categories; }
+    // Note that these category methods do NOT update the NoteOrganizer category tracker!
     public NoteBase addCategory(String category) { categories.add(category); return this; }
     public NoteBase removeCategory(String cat) { categories.remove(cat); return this; }
     public NoteBase addCategories(Set<String> cats) { categories.addAll(cats); return this; }
     public LocalDateTime getDateCreated() { return created; }
+    public boolean getCompleted() { return completed != null && completed; }
+    public NoteBase setCompleted(boolean isCompleted) { completed = isCompleted; return this; }
 
     public boolean hasCategory(String category) { return categories.contains(category); }
     // ToDo: Need Javadoc (e.g. no categories automatically returns true)
@@ -40,5 +60,5 @@ public class NoteBase {
     public boolean hasAnyCategory(Set<String> cats) {
         return cats == null || cats.isEmpty() || cats.stream().anyMatch(cat -> categories.contains(cat));
     }
-    // ToDo: Support toString() method
+    // ToDo: Support toString() method?
 }
