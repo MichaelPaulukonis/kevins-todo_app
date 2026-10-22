@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Java/Gradle backend for a note-taking / to-do app ("Kevin's Todo App", Gradle project name `NoteElements`). Fork of `kkraft714/todo_app` (see `git remote -v`: `origin` is this fork, `upstream` is the original; sync with `git pull upstream main` - plain merge, not `--ff-only`, since the fork carries its own commits like this file). Early prototype - no REST/UI layer, and no persistence of the domain model yet (Hibernate is configured but no classes are mapped). See `todo_app_spec.md` for the product spec and intended UI/data model, and `README.md` for open design questions.
+Java/Gradle backend for a note-taking / to-do app ("Kevin's Todo App", Gradle project name `NoteElements`). Fork of `kkraft714/todo_app` (see `git remote -v`: `origin` is this fork, `upstream` is the original; sync with `git pull upstream main` - plain merge (`git pull --no-rebase upstream main`, or set `git config pull.rebase false` once), not `--ff-only`, since the fork carries its own commits like this file). Early prototype - no REST/UI layer, and no persistence of the domain model yet (Hibernate is configured but no classes are mapped). See `todo_app_spec.md` for the product spec and intended UI/data model, and `README.md` for open design questions.
 
 ## Commands
 
@@ -30,31 +30,12 @@ docker-compose up -d postgres  # just the DB, for local Gradle runs against it
 - Connection config: `src/main/resources/hibernate.properties` (main) and `src/test/resources/hibernate.properties` (test) - placeholders (`PORT`, `DB_NAME`, `USERNAME`, `PASSWORD`) are meant to be filled in or overridden.
 - `HibernateUtil` (`src/main/java/server/database/HibernateUtil.java`) overrides the properties file from env vars: `DB_USERNAME`/`DB_PASSWORD` for credentials, and `DB_PORT`+`DB_TEST_NAME` together to rewrite the JDBC URL to `localhost:$DB_PORT/$DB_TEST_NAME` (`DB_PROD_NAME` is read but unused). This naming does **not** match `docker-compose.yml`/`.env.example` (`DB_USER`, `DB_NAME`) - reconcile before assuming Docker Compose env vars flow into Hibernate.
 
-## Architecture
+## Conventions
 
-The old `server.Note`/`NoteElement` model was removed (upstream `f7505e9`, `660c909`). Everything now uses the `server.note` hierarchy. None of it is Hibernate-annotated yet (several classes carry "Needs to be mapped to DB" ToDos).
+The domain model changes in most upstream PRs, so it isn't summarized here - read the code (`server.note`, `server.NoteOrganizer`, `server.SearchCriteria`); it's small.
 
-**Domain model** (`server.note`) - non-generic, setters return `this` for chaining:
-
-- `NoteBase` - name, description, created timestamp, `categories` (`Set<String>`, with `hasAllCategories`/`hasAnyCategory`). Leaf notes. There is no separate tag set: program-defined taxonomies are enums implementing `server.categories.InternalCategory` (e.g. `MediaType`), stored on notes as their string names.
-- `Note extends NoteBase` - adds `completed`, `childNotes` (`List<NoteBase>`, the note tree) and `links`.
-- Subtypes of `Note`: `Entity` (with `EntityType` enum: person, business, artist, ...), `Contact extends Entity` (first/last name, addresses, phones; `newContact`/`newBusiness` factories), `Product` (owner `Entity`, `InternalCategory` type, `Price`), `ScheduleItem` (date + `CompletionStatus`).
-- `Link extends NoteBase` (not `Note`) - URL + broken flag.
-
-**Value objects** (`server.element`): `Address`, `Phone`, `Price` - plain data, not notes.
-
-**Controller**: `server.NoteOrganizer` - in-memory: `List<NoteBase> notes` (top-level tree), `Map<String, Set<NoteBase>> categories` (category index), `Map<Class, List<NoteBase>> noteTypes` (type index), plus `contacts`. Use `addNote`/`addChildNote`/`deleteNote` rather than mutating `Note` directly, so the indexes stay in sync. No DB-backed CRUD.
-
-**Search**: `NoteOrganizer.findMatchingNotes(SearchCriteria)` - recurses into child notes; when the criteria carry categories it starts from the category index instead of the whole tree. `SearchCriteria` filters by categories (AND/OR via `joinWithAnd`), note class (`isAssignableFrom`), and case-insensitive name substring.
-
-The code is heavily annotated with `// ToDo:` comments recording open design questions - read them before changing a class, and don't resolve them unilaterally.
-
-## Tests
-
-- `NoteOrganizerTest` and `SearchTest` extend `TestBase`, which creates a fresh `NoteOrganizer` (`main`) per test and resets `NoteTestHelper`'s note counter after each one. `NoteTestHelper` generates test notes (random note types, category partitions for AND/OR queries).
-- `NoteTest` exercises the `server.note` model; its fixtures are static (`@BeforeAll`) and reset in `@AfterEach`.
-- `UnitTest` covers `InternalCategory` helpers on `MediaType` (its own ToDo suggests folding it elsewhere).
-- `DBSanityTest` requires a live Postgres connection (see Database section).
+- `server.NoteOrganizer` holds the in-memory note tree plus category and type indexes. Add/remove notes through it (`addNote`/`addChildNote`/`deleteNote`); mutating a note directly - including `NoteBase.addCategory` - silently bypasses the indexes.
+- The code is heavily annotated with `// ToDo:` comments recording open design questions - read them before changing a class, and don't resolve them unilaterally.
 
 <!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:970c3bf2 -->
 ## Beads Issue Tracker
