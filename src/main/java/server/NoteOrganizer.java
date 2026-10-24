@@ -19,6 +19,7 @@ public class NoteOrganizer {
     // Note: using List because Set isn't ordered
     protected List<NoteBase> notes;   // This structure defines the note tree
     protected Map<Class<? extends NoteBase>, List<NoteBase>> noteTypes;
+    // ToDo: Change this to Category type at some point (equals() and hashCode() are based directly on name)
     protected Map<String, Set<NoteBase>> categories;
     // ToDo: Create one universal logger for the whole app?
     private static final Logger LOG = LogManager.getLogger(NoteOrganizer.class);
@@ -79,8 +80,10 @@ public class NoteOrganizer {
     // ToDo: If I implement this I also need to update categories
     public void addNote(NoteBase newNote, int index) { }
 
+    // ToDo: Throw error for duplicate category (even though they're stored in a Set)?
     public void addCategory(String name) { categories.put(name, new HashSet<>()); }
 
+    // ToDo: Can some of this infrastructure for managing categories be made private?
     public void addNoteToCategory(String name, NoteBase newNote) {
         newNote.addCategory(name);
         if (!categories.containsKey(name)) {

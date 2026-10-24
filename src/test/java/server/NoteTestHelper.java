@@ -1,7 +1,9 @@
 package server;
 
+import server.categories.Category;
 import server.categories.MediaType;
 import server.element.Address;
+import server.element.Phone;
 import server.note.*;
 
 import java.time.LocalDateTime;
@@ -43,13 +45,14 @@ public class NoteTestHelper {
         return switch (elementTypeIndex) {
             case 0 -> {
                 contactCount++;
-                yield newPerson("First", "Contact" + contactCount).addAddress(
-                        new Address().setPhoneNumber("345-5679").setAddress1("222 2nd St.").setCity("Menlo Park"));
+                yield newPerson("First", "Contact" + contactCount).addPhoneNumber("345-5679", Phone.PhoneType.WORK)
+                        .addAddress(new Address().setAddress1("222 2nd St.").setCity("Menlo Park"));
             }
             case 1 -> {
                 songCount++;
                 Entity owner = new Entity("The Who", null, Entity.EntityType.ARTIST);
-                yield new Product("Who Song #" + songCount).setOwner(owner).setType(MediaType.SONG).setPrice(5.99);
+                yield new Product("Who Song #" + songCount).setOwner(owner)
+                        .setType(Category.of(MediaType.SONG)).setPrice(5.99);
             }
             case 2 -> {
                 linkCount++;

@@ -1,36 +1,20 @@
 package server.element;
 
+import jakarta.persistence.Embeddable;
+import java.util.Objects;
+
 /**
 ** Contains contact information.
 */
-// ToDo: Support multiple phone numbers and addresses?
-// ToDo: Define separate phone number class with type (mobile, home, work)?
+@Embeddable
 public class Address {
-  private String phoneNumber;
-  private String email;
   private String address1;
   private String address2;
   private String city;
   private String state;
   private Integer postalCode;
 
-  // No-arg constructor required by Hibernate (ToDo: Is this still true?)
-  public Address() {}
-
-  public Address(String newPhone, String addr1, String addr2, String cityName, String stateName, Integer newCode) {
-    this.phoneNumber = newPhone;
-    this.address1 = addr1;
-    this.address2 = addr2;
-    this.city = cityName;
-    this.state = stateName;
-    this.postalCode = newCode;
-  }
-
-  public String getPhoneNumber() { return phoneNumber; }
-  public Address setPhoneNumber(String newPhone) { this.phoneNumber = newPhone; return this; }
-
-  public String getEmail() { return email; }
-  public Address setEmail(String newEmail) { this.email = newEmail; return this; }
+  public Address() {}   // No-arg constructor required by Hibernate
 
   public String getAddress1() { return address1; }
   public Address setAddress1(String addr1) { this.address1 = addr1; return this; }
@@ -48,11 +32,24 @@ public class Address {
   public Address setPostalCode(Integer code) { this.postalCode = code; return this; }
 
   @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (!(o instanceof Address)) return false;
+    Address a = (Address)o;
+    return Objects.equals(address1, a.getAddress1()) && Objects.equals(address2, a.getAddress2())
+            && Objects.equals(city, a.getCity()) && Objects.equals(state, a.getState())
+            && Objects.equals(postalCode, a.getPostalCode());
+  }
+
+  @Override
+  public int hashCode() { return Objects.hash(address1, address2, city, state, postalCode); }
+
+  @Override
   public String toString() {
     // ToDo: Could turn this into a toString() utility (takes a list of Strings)
     String result = "Contact:\n" + super.toString();
     String pc = postalCode == null ? null : postalCode.toString();
-    for (String item : new String[] {phoneNumber, email, address1, address2, city, state, pc}) {
+    for (String item : new String[] {address1, address2, city, state, pc}) {
       if (item != null && !item.isEmpty()) {
         result = result.concat("\n" + item);
       }
