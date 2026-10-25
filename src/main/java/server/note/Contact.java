@@ -1,24 +1,31 @@
 package server.note;
 
+import jakarta.persistence.*;
 import server.element.*;
-
 import java.util.ArrayList;
 import java.util.List;
 
 // Includes Person, Company etc.
-
-// ToDo: Add list of email addresses!
+// ToDo: Add list of email addresses (define Email class?)!
+@jakarta.persistence.Entity
+@DiscriminatorValue("CONTACT")
 public class Contact extends Entity {
     private String firstName;
     private String lastName;
-    private ArrayList<Address> addresses;
-    private ArrayList<Phone> phoneNumbers;
+    @ElementCollection(targetClass = Address.class)
+    @CollectionTable(name = "contact_addresses", joinColumns = @JoinColumn(name = "contact_id"))
+    private List<Address> addresses;
+    @ElementCollection(targetClass = Phone.class)
+    @CollectionTable(name = "contact_phones", joinColumns = @JoinColumn(name = "contact_id"))
+    private List<Phone> phoneNumbers;
 
     public Contact(String displayName, EntityType type) {
         super(displayName, null, type);
         this.addresses = new ArrayList<>();
         this.phoneNumbers = new ArrayList<>();
     }
+
+    private Contact() {}    // No-arg constructor required by Hibernate
 
     // ToDo: Should type be final or do we need a setter?
     public String getFirstName() { return firstName; }
@@ -38,6 +45,10 @@ public class Contact extends Entity {
     public List<Address> getAddresses() { return addresses; }
     public Contact addAddress(Address newAddress) { addresses.add(newAddress); return this; }
     public List<Phone> getPhoneNumbers() { return phoneNumbers; }
+    public Contact addPhoneNumber(String number, Phone.PhoneType type) {
+        phoneNumbers.add(new Phone().setNumber(number).setType(type)); return this;
+    }
+    // ToDo: Remove this version?
     public Contact addPhoneNumber(Phone newPhone) { phoneNumbers.add(newPhone); return this; }
 
     public static void validateFirstNameOrLastNameIsSet(String firstName, String lastName) {

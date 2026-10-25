@@ -18,5 +18,6 @@ public interface InternalCategory {
     default Set<String> convertToStrings() {
         return getCategories().stream().map(InternalCategory ::toString).collect(Collectors.toSet());
     }
+    String getName();
     Set<InternalCategory> getCategories();
 }
