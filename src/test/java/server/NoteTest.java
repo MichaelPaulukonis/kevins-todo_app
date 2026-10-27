@@ -1,8 +1,8 @@
 package server;
 
-import server.element.Address;
+import server.element.*;
 import server.note.*;
-import server.categories.MediaType;
+import server.categories.*;
 import java.net.MalformedURLException;
 import java.util.NoSuchElementException;
 
@@ -27,7 +27,7 @@ public class NoteTest {
         emptyTestNote = createGenericTestNote();
         noteWithRandomElements = createGenericTestNoteWithRandomElements(defaultElementCount);
         subNote1 = createGenericTestNote("Test sub-note");
-        subNote1.addChildNote(new Product("I'm Your Captain", null, artist).setType(MediaType.SONG));
+        subNote1.addChildNote(new Product("I'm Your Captain", null, artist).setType(Category.of(MediaType.SONG)));
         subNote2 = createGenericTestNote("Test sub-note");
         subNote2.addChildNote(new Link("Google", "http://facebook.com"));
     }
@@ -89,6 +89,7 @@ public class NoteTest {
     }
 
     // ToDo: Add tests for setContactName()
+    // ToDo: Add tests for phone numbers and addresses
 
     @Test
     public void contactCreationFailsIfTypeIsNull() {
@@ -98,10 +99,10 @@ public class NoteTest {
     @Test
     // ToDo: Need separate tests for ordering
     public void createNoteWithEachElementTypeAndVerifyResult() throws MalformedURLException {
-        emptyTestNote.addChildNote(newPerson("First1", "Last1").addAddress(
-                new Address().setPhoneNumber("234-5678").setAddress1("123 4th St.").setCity("Menlo Park")));
+        emptyTestNote.addChildNote(newPerson("First1", "Last1").addPhoneNumber("234-5678", Phone.PhoneType.MOBILE)
+                .addAddress(new Address().setAddress1("123 4th St.").setCity("Menlo Park")));
         emptyTestNote.addChildNote(new Product("Blind Alley", null,
-                new Entity("Fanny", null, Entity.EntityType.ARTIST)).setType(MediaType.SONG));
+                new Entity("Fanny", null, Entity.EntityType.ARTIST)).setType(Category.of(MediaType.SONG)));
         // emptyTestNote.addElement(new Price(5.00));
         emptyTestNote.addChildNote(new Link("Google", "http://google.com"));
         emptyTestNote.addChildNote(new ScheduleItem("Deadline", null, "2020-06-12 00:00:00 AM"));

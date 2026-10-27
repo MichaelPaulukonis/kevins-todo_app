@@ -15,17 +15,16 @@ Java/Gradle backend for a note-taking / to-do app ("Kevin's Todo App", Gradle pr
 ./gradlew test --tests "server.NoteOrganizerTest.someMethodName"  # single test method
 ```
 
-Java 21 (Gradle toolchain in `build.gradle`; tests use Java 21 APIs like `List.getFirst()`). Use `./gradlew` (don't install a global Gradle - it won't match the pinned version). Upstream `main` doesn't track the wrapper (`gradle*` in `.gitignore`), so `./gradlew` fails with `NoClassDefFoundError: org/gradle/cli/CommandLineParser`. The fix (Gradle 8.14 wrapper + foojay toolchain resolver) lives on the `gradle-wrapper` branch (upstream PR #20). Until it merges, to test any branch or PR:
+Java 21 (Gradle toolchain in `build.gradle`; tests use Java 21 APIs like `List.getFirst()`). Use `./gradlew` (Gradle 8.14, pinned by the committed wrapper) - don't install a global Gradle, it won't match. The foojay resolver in `settings.gradle` downloads the Java 21 toolchain if it isn't installed.
+
+Full suite needs Postgres (see Database below):
 
 ```bash
-git fetch upstream pull/<N>/head:pr-<N>
-git worktree add --detach <scratch>/pr<N> pr-<N>
-cd <scratch>/pr<N> && git checkout gradle-wrapper -- gradlew gradle/
-docker-compose -f <repo>/docker-compose.yml --project-directory <repo> up -d postgres   # todo_postgres on localhost:5455
+docker-compose up -d postgres   # todo_postgres on localhost:5455
 DB_USERNAME=postgres DB_PASSWORD=postgres DB_PORT=5455 DB_TEST_NAME=todo_db ./gradlew test
 ```
 
-Per-test results land in `build/test-results/test/TEST-*.xml` (count with `grep -o 'tests="[0-9]*"...failures="[0-9]*"'`). Without the `DB_*` env vars `DBSanityTest` fails (properties file holds placeholders).
+Per-test results land in `build/test-results/test/TEST-*.xml`. Without the `DB_*` env vars `DBSanityTest` fails (properties file holds placeholders). To test a PR: `git fetch upstream pull/<N>/head:pr-<N>` and run it in a worktree.
 
 Developed in IntelliJ IDEA (both maintainers, Michael Paulukonis and Kevin Kraft) - `.idea/` project files are checked in. Expect IntelliJ's own test runner to be how this project is normally exercised day-to-day.
 

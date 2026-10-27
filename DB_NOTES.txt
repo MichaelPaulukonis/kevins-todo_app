@@ -1,6 +1,5 @@
 
-ToDo: Transfer this to a README file?
-
+ToDo: Transfer this to a new markdown file or incorporate it into the existing README
 Using MySQL:
 
 * Use mysqld to start the DB (may need to create “data” dir under installation?)

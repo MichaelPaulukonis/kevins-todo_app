@@ -1,10 +1,15 @@
 package server.note;
 
+import jakarta.persistence.DiscriminatorValue;
+
 // Includes Contact, Person, Company, Artist, etc.
+// Need to use fully-qualified name to distinguish the annotation from this class
+@jakarta.persistence.Entity
+@DiscriminatorValue("ENTITY")
 public class Entity extends Note {
     // ToDo: Support String customType for user-defined types (e.g. like "Band", "Author", "Client", etc.)?
     public enum EntityType { PERSON, BUSINESS, ORGANIZATION, NON_PROFIT, ARTIST };
-    private final EntityType type;
+    private EntityType type;
 
     public Entity(String name, String description, EntityType type) {
         super(name, description);
@@ -12,6 +17,8 @@ public class Entity extends Note {
         assert type != null : "Entity type cannot be null";
         this.type = type;
     }
+
+    protected Entity() {}   // No-arg constructor required by Hibernate
 
     public EntityType getType() { return type; }
 

@@ -1,5 +1,6 @@
 package server;
 
+import server.categories.Category;
 import server.categories.MediaType;
 import server.note.*;
 import org.junit.jupiter.api.*;
@@ -74,7 +75,7 @@ public class NoteOrganizerTest extends TestBase {
     @Test
     public void addProduct() {
         main.addNote(new Product("Blind Alley", null,
-                new Entity("Fanny", "Rock Band",  Entity.EntityType.ARTIST)).setType(MediaType.SONG));
+                new Entity("Fanny", "Rock Band",  Entity.EntityType.ARTIST)).setType(Category.of(MediaType.SONG)));
         assertEquals(1, main.getNotes().size(), "Total number of notes");
         assertEquals(1, main.getNotesForType(Product.class).size(), "Number of Product notes");
     }

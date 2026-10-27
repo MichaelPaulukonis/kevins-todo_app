@@ -1,9 +1,13 @@
 package server.note;
 
+import jakarta.persistence.DiscriminatorValue;
+
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 // ToDo: Support recurring events?
+@jakarta.persistence.Entity
+@DiscriminatorValue("SCHEDULE_ITEM")
 public class ScheduleItem extends Note {
     // 12-hour timestamp format with AM/PM
     private static final DateTimeFormatter dateFormat = DateTimeFormatter.ofPattern("yyyy-MM-dd hh:mm:ss a");
@@ -22,6 +26,8 @@ public class ScheduleItem extends Note {
     public ScheduleItem(String name, String description, String dateString) {
         this(name, description, LocalDateTime.parse(dateString, dateFormat));
     }
+
+    private ScheduleItem() {}   // No-arg constructor required by Hibernate
 
     public LocalDateTime getDate() { return date; }
     public void setDate(LocalDateTime newDate) { this.date = newDate; }
