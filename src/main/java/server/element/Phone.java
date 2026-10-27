@@ -1,20 +1,18 @@
 package server.element;
 
 import jakarta.persistence.Embeddable;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+
 import java.util.Objects;
 
-// ToDo Resurrect ContactInfo and add email?
 @Embeddable
 public class Phone {
     // ToDo: Support String customPhoneType for user-defined phone types?
     public enum PhoneType { MOBILE, HOME, WORK, OTHER };
     private String number;
+    @Enumerated(EnumType.STRING)
     private PhoneType type;
-
-    public Phone(String number, PhoneType type) {
-        this.number = number;
-        this.type = type;
-    }
 
     public Phone() {}   // No-arg constructor required by Hibernate
 
@@ -26,8 +24,7 @@ public class Phone {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Phone)) return false;
-        Phone p = (Phone)o;
+        if (!(o instanceof Phone p)) return false;
         return Objects.equals(number, p.getNumber()) && Objects.equals(type, p.getType());
     }
 
