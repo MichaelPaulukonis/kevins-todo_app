@@ -14,18 +14,19 @@ public class Contact extends Entity {
     private String lastName;
     @ElementCollection(targetClass = Address.class)
     @CollectionTable(name = "contact_addresses", joinColumns = @JoinColumn(name = "contact_id"))
-    private List<Address> addresses;
+    private final List<Address> addresses = new ArrayList<>();
     @ElementCollection(targetClass = Phone.class)
     @CollectionTable(name = "contact_phones", joinColumns = @JoinColumn(name = "contact_id"))
-    private List<Phone> phoneNumbers;
+    private final List<Phone> phoneNumbers = new ArrayList<>();
+    @ElementCollection(targetClass = Email.class)
+    @CollectionTable(name = "contact_emails", joinColumns = @JoinColumn(name = "contact_id"))
+    private final List<Email> emails = new ArrayList<>();
 
     public Contact(String displayName, EntityType type) {
         super(displayName, null, type);
-        this.addresses = new ArrayList<>();
-        this.phoneNumbers = new ArrayList<>();
     }
 
-    private Contact() {}    // No-arg constructor required by Hibernate
+    protected Contact() {}    // No-arg constructor required by Hibernate
 
     // ToDo: Should type be final or do we need a setter?
     public String getFirstName() { return firstName; }
@@ -42,11 +43,19 @@ public class Contact extends Entity {
         }
         return this;
     }
+    // ToDo: Need methods to retrieve individual addresses, phones, and emails?
     public List<Address> getAddresses() { return addresses; }
     public Contact addAddress(Address newAddress) { addresses.add(newAddress); return this; }
     public List<Phone> getPhoneNumbers() { return phoneNumbers; }
     public Contact addPhoneNumber(String number, Phone.PhoneType type) {
-        phoneNumbers.add(new Phone().setNumber(number).setType(type)); return this;
+        phoneNumbers.add(new Phone().setNumber(number).setType(type));
+        return this;
+    }
+    public List<Email> getEmails() { return emails; }
+    public Contact addEmail(Email newEmail) { emails.add(newEmail); return this; }
+    public Contact addEmail(String address, Email.EmailType type) {
+        emails.add(new Email().setAddress(address).setType(type));
+        return this;
     }
     // ToDo: Remove this version?
     public Contact addPhoneNumber(Phone newPhone) { phoneNumbers.add(newPhone); return this; }

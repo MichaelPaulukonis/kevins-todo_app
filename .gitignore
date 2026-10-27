@@ -1,3 +1,7 @@
+# Per Gemini I wasn't supposed to check in this file
+# Project-specific files
+test.hibernate.properties
+
 build/*
 .gradle
 *.gradle

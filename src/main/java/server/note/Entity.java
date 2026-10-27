@@ -4,10 +4,12 @@ import jakarta.persistence.DiscriminatorValue;
 
 // Includes Contact, Person, Company, Artist, etc.
 // Need to use fully-qualified name to distinguish the annotation from this class
+// ToDo: Override equals() and hashCode() for this class?
 @jakarta.persistence.Entity
 @DiscriminatorValue("ENTITY")
 public class Entity extends Note {
     // ToDo: Support String customType for user-defined types (e.g. like "Band", "Author", "Client", etc.)?
+    // ToDo: Should EntityType extend InternalCategory?
     public enum EntityType { PERSON, BUSINESS, ORGANIZATION, NON_PROFIT, ARTIST };
     private EntityType type;
 

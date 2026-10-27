@@ -2,7 +2,10 @@ package server.note;
 
 import jakarta.persistence.*;
 import server.categories.Category;
+import server.categories.MediaType;
 import server.element.Price;
+
+import static server.NoteUtils.LOG;
 
 @jakarta.persistence.Entity
 @DiscriminatorValue("PRODUCT")
@@ -21,7 +24,7 @@ public class Product extends Note {
 
     public Product(String name) { super(name, null); }
 
-    private Product() {}    // No-arg constructor required by Hibernate
+    protected Product() {}    // No-arg constructor required by Hibernate
 
     public Entity getOwner() { return owner; }
     public Product setOwner(Entity newOwner) { owner = newOwner; return this; }
@@ -29,9 +32,15 @@ public class Product extends Note {
     // ToDo: Do I need to update Category tracking in NoteOrganizer for this?
     public Product setType(Category type) {
         this.type = type;
-        this.addCategory(type.getName());
+        if (categories.contains(type.getName())) {
+            LOG.warn("Product category already exists (cannot add): {}", type.getName());
+        }
+        else {
+            this.addCategory(type.getName());
+        }
         return this;
     }
+    public Product setType(MediaType type) { setType(Category.of(type)); return this; }
     public Price getPrice() { return productPrice; }
     public Product setPrice(Price productPrice) { this.productPrice = productPrice; return this; }
     public Product setPrice(double price) { this.productPrice = new Price(price); return this; }

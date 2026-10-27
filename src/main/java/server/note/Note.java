@@ -14,8 +14,10 @@ import java.util.List;
 @DiscriminatorValue("NOTE")
 public class Note extends NoteBase {
     // Maps the relationship using the 'parent' field declared in NoteBase
+    @OrderColumn
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
     protected List<NoteBase> childNotes = new ArrayList<>();    // ToDo: Rename "children"?
+    @OrderColumn
     @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "note_id")
     protected List<Link> links = new ArrayList<>();
@@ -38,6 +40,7 @@ public class Note extends NoteBase {
         return this;
     }
     public Note addChildNote(NoteBase childNote, int index) { childNotes.add(index, childNote); return this; }
+    // ToDo: Delete childNote from DB in this case?
     public NoteBase removeChildNote(NoteBase childNote) {
         childNote.setParent(null);
         childNotes.remove(childNote);

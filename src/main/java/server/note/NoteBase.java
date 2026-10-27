@@ -6,9 +6,9 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * This is the base class for all Note objects.
+ * This is the base class for all Note objects. It can be used for leaf-type notes with no child elements.
  */
-// This can be used for leaf-type notes with no child elements
+// ToDo: Per Gemini I should override hashCode() and equals() for @Entity classes as well
 @jakarta.persistence.Entity
 @Table(name = "note_base")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)

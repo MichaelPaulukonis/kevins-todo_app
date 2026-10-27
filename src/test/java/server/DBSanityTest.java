@@ -5,9 +5,12 @@ import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.junit.jupiter.api.*;
 import org.hibernate.Session;
-import server.categories.Category;
 import server.categories.MediaType;
+import server.element.*;
 import server.note.*;
+
+import java.time.LocalDateTime;
+import java.util.List;
 
 import static server.database.HibernateUtil.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,8 +28,8 @@ public class DBSanityTest {
 
     // ToDo: Move all this setup and teardown code into TestBase?
     @BeforeAll
-    public static void setUpTestSessionFactory() {
-        testServiceRegistry = buildServiceRegistry(true);
+    public static void setUpTestSessionFactory() throws Exception {
+        testServiceRegistry = getServiceRegistry(true);
         testSessionFactory = getSessionFactory(testServiceRegistry);
     }
 
@@ -68,12 +71,11 @@ public class DBSanityTest {
         assertFalse(testSession.isOpen(), "Test session in open");
     }
 
-    private static final String simpleNoteName = "Simple Note 1";
-    private static final NoteBase simpleNote = new NoteBase(simpleNoteName, "Simple NoteBase object");
     @Test
     public void createSimpleNote() {
+        NoteBase simpleNote = getSimpleNote();
         NoteBase fetchedNote = saveAndRetrieveNote(testSession, simpleNote);
-        assertEquals(simpleNoteName, fetchedNote.getName(), "Simple Note name");
+        assertEquals(simpleNote.getName(), fetchedNote.getName(), "Simple Note name");
     }
 
     @Test
@@ -97,50 +99,78 @@ public class DBSanityTest {
         // System.out.println("Child Note name: " + fetchedNote.getChildNote(0).getName());
     }
 
-    // ToDo: createNoteWithMultipleChildNotes()
-    // ToDo: Create static test Link (like simpleNote)?
+    @Test
+    public void createNoteWithOneChildOfEachNoteType() {
+        Note newNote = getTestNote();
+        newNote.addChildNote(getSimpleNote());
+        newNote.addChildNote(getTestNote());
+        newNote.addChildNote(getTestPerson());
+        newNote.addChildNote(getTestBusiness());
+        newNote.addChildNote(getTestProduct());
+        newNote.addChildNote(getTestArtist());
+        newNote.addChildNote(getGoogleLink());
+        newNote.addChildNote(getTestScheduleItem());
+        Note fetchedNote = saveAndRetrieveNote(testSession, newNote);
+        List<? extends NoteBase> children = fetchedNote.getChildNotes();
+        assertEquals(8, children.size(), "Number of child notes");
+        List<Class<? extends NoteBase>> childTypes = List.of(NoteBase.class, Note.class, Contact.class,
+                Contact.class, Product.class, Entity.class, Link.class, ScheduleItem.class);
+        for (int i = 0; i < childTypes.size(); i++) {
+            assertEquals(childTypes.get(i), children.get(i).getClass(), "Type for child #" + (i + 1));
+        }
+    }
+
     @Test
     public void createNoteWithLink() {
-        String url = "http://google.com";    // ToDo: Make this a static constant
         Note newNote = new Note("NewNote3", "Testing adding a link to a note");
-        newNote.addLink(new Link("Google", null, url));
+        Link newLink = getGoogleLink();
+        newNote.addLink(newLink);
         Note fetchedNote = saveAndRetrieveNote(testSession, newNote);
         assertEquals(1, fetchedNote.getLinks().size(), "Number of Note links");
-        assertEquals(url, fetchedNote.getLink(0).getUrl().toString(), "Link added to Note");
+        assertEquals(newLink.getUrl(), fetchedNote.getLink(0).getUrl(), "Link added to Note");
     }
 
     @Test
     public void createEntity() {
-        // ToDo: Factor out static final Entity type for testing?
-        Entity artist = new Entity("Grand Funk", null, Entity.EntityType.ARTIST);
-        Entity fetchedNote = saveAndRetrieveNote(testSession, artist);
-        assertEquals(artist.getType(), fetchedNote.getType(), "Entity type");
+        Entity newEntity = getTestArtist();
+        Entity fetchedNote = saveAndRetrieveNote(testSession, newEntity);
+        assertEquals(newEntity.getType(), fetchedNote.getType(), "Entity type");
+        assertEquals(newEntity.getName(), fetchedNote.getName(), "Artist name");
     }
 
     @Test
     public void createContact() {
-        String firstName = "Person1";
-        String lastName = "LastName";
-        Contact person = Contact.newPerson(firstName, lastName);
-        Note fetchedNote = saveAndRetrieveNote(testSession, person);
-        assertEquals(firstName + " " + lastName, fetchedNote.getName(), "Person name");
+        Contact person = Contact.newPerson("Person1", "LastName1");
+        Contact fetchedNote = saveAndRetrieveNote(testSession, person);
+        assertEquals(person.getName(), fetchedNote.getName(), "Person name");
+    }
+
+    @Test
+    public void createContactWithAddressPhoneAndEmail() {
+        Contact person = Contact.newPerson("Person2", "LastName2");
+        person.addAddress(new Address().setAddress1("123 4th St.").setCity("Menlo Park"));
+        person.addPhoneNumber("775-3433", Phone.PhoneType.HOME);
+        person.addEmail("user1@gmail.com", Email.EmailType.PERSONAL);
+        Contact fetchedNote = saveAndRetrieveNote(testSession, person);
+        assertEquals(1, fetchedNote.getAddresses().size(), "Number of addresses");
+        assertEquals(1, fetchedNote.getPhoneNumbers().size(), "Number of Phone numbers");
+        assertEquals(1, fetchedNote.getEmails().size(), "Number of Emails");
     }
 
     @Test
     public void createProduct() {
-        Entity owner = new Entity("Fanny", null, Entity.EntityType.ARTIST);
-        Product newProduct = new Product("Blind Alley", null, null).setType(Category.of(MediaType.SONG));
-        newProduct.setOwner(owner);
+        Product newProduct = getTestProduct();
         Product fetchedNote = saveAndRetrieveNote(testSession, newProduct);
-        // ToDo: Also assert on owner ID?
         assertEquals(newProduct.getType(), fetchedNote.getType(), "Product category");
+        assertEquals(newProduct.getOwner().getName(), fetchedNote.getOwner().getName(), "Owner name");
+        assertEquals(newProduct.getPrice(), fetchedNote.getPrice(), "Product price");
     }
 
     @Test
     public void createLink() {
-        Link webLink = new Link("Google", null, "http://google.com");
-        Link fetchedNote = saveAndRetrieveNote(testSession, webLink);
-        assertEquals(webLink.getUrl(), fetchedNote.getUrl(), "Link URL");
+        Link newLink = getGoogleLink();
+        Link fetchedNote = saveAndRetrieveNote(testSession, newLink);
+        assertEquals(newLink.getUrl(), fetchedNote.getUrl(), "Link URL");
     }
 
     @Test
@@ -149,16 +179,57 @@ public class DBSanityTest {
         ScheduleItem fetchedNote = saveAndRetrieveNote(testSession, event);
         assertEquals(event.getDate(), fetchedNote.getDate(), "Event date");
     }
+
+    // ================ Helper methods ================ (ToDo: Move these into a base test class)
+    // ToDo: Support these methods for each Note type
+    protected static NoteBase getSimpleNote() {
+        return new NoteBase("Simple Note 1", "Simple NoteBase object");
+    }
+
+    private static int noteNumber = 1;
+    protected static Note getTestNote() {
+        return new Note("Note#" + noteNumber, "Testing note #" + noteNumber++);
+    }
+
+    private static int personNumber = 1;
+    protected static Contact getTestPerson() {
+        return Contact.newPerson("FirstName" + personNumber, "LastName" + personNumber++);
+    }
+
+    private static int businessNumber = 1;
+    private static Contact getTestBusiness() {
+        return Contact.newBusiness("Business#" + businessNumber, "Description for business #" + businessNumber++);
+    }
+
+    protected static Link getGoogleLink() {
+        return new Link("Google", null, "http://google.com");
+    }
+
+    protected static Entity getTestArtist() {
+        return new Entity("Grand Funk", null, Entity.EntityType.ARTIST);
+    }
+
+    private static int productNumber = 1;
+    protected static Product getTestProduct() {
+        return new Product("Product#" + productNumber++)
+                .setOwner(getTestArtist()).setPrice(5.99).setType(MediaType.SONG);
+    }
+
+    protected static int eventNumber = 1;
+    protected static ScheduleItem getTestScheduleItem() {
+        return new ScheduleItem("Event#" + eventNumber, null, LocalDateTime.now().plusDays(eventNumber++));
+    }
 }
 
-// ToDo: Test adding addresses and phone numbers to Contact
-// ToDo: Test adding links to a note
+// ToDo: Add Contact test with multiple Addresses, Phones, and, Emails (and assertEquals() on full lists)
+// ToDo: Add DB configuration tests (combinations of config files and environment variables)
+//  - Test non-existent config file
 // ToDo: Add deletion tests
 // ToDo: Test deleting one child note from a list of multiple
 // ToDo: Test cascading deletes (deleting parent entity also deletes children)
 // ToDo: Add tests for CRUD operations on each entity type (Note, Contact, MediaItem, etc.)
 // ToDo: Add tests for complex queries
-// ToDo: Add tests for verifying managed entities (dbSession.getManagedEntities())
-//       Verify there is at least one managed entity?
 // ToDo: Add commit tests (using separate sessions for create and retrieve) - Put them in a separate class?
 // ToDo: Come up with some negative tests (null Note, etc.)
+// ToDo: Add tests for verifying managed entities (dbSession.getManagedEntities())
+//       Verify there is at least one managed entity?
