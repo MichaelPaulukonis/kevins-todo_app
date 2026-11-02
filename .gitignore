@@ -18,8 +18,10 @@ build/*
 .env
 
 ## various extenions and agent litter
+.agents/
 .specstory/
 .gemini/
+GEMINI.md
 .github/
 .kiro/
 .taskmaster/
