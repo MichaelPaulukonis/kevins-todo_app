@@ -12,6 +12,7 @@ import static server.NoteTestHelper.*;
 import static server.note.Contact.*;
 import static org.junit.jupiter.api.Assertions.*;
 
+// ToDo: Update these tests to be based on the DB
 // ToDo: Figure out JUnit assertThat() with matchers (and replace assertTrue())
 // ToDo: Switch to TestNG Test annotations and framework (instead of JUnit)?
 //   If so use the description attribute to document the tests
@@ -32,7 +33,7 @@ public class NoteOrganizerTest extends TestBase {
     @Test
     public void addMultipleNotes() {
         int expectedCount = 3;
-        addTestNotes(expectedCount, main);
+        persistNewTestNotes(expectedCount, main);
         assertEquals(expectedCount, main.getNotes().size(), "Number of notes");
     }
 
@@ -103,7 +104,7 @@ public class NoteOrganizerTest extends TestBase {
     //   What this is REALLY testing is removing the note at index 0
     public void removeMultipleNotes() {
         int expectedCount = 3;
-        addTestNotes(expectedCount, main);
+        persistNewTestNotes(expectedCount, main);
         for (int i = 0; i < expectedCount; i++) {
             NoteBase noteToRemove = main.getNote(0);
             // ToDo: Test the index version too: deleteNote(int index)?
@@ -116,7 +117,7 @@ public class NoteOrganizerTest extends TestBase {
     @Test
     public void removeAllNotes() {
         int initialNoteCount = 5;
-        addTestNotes(initialNoteCount, main);
+        persistNewTestNotes(initialNoteCount, main);
         main.getNotes().clear();
         assertEquals(0, main.getNotes().size(), "Number of remaining notes after deletion");
     }
@@ -124,7 +125,7 @@ public class NoteOrganizerTest extends TestBase {
     @Test
     public void removeOneOfMultipleNotes() {
         int initialNoteCount = 5;
-        addTestNotes(initialNoteCount,  main);
+        persistNewTestNotes(initialNoteCount,  main);
         // ToDo: Verify that I deleted the RIGHT note
         main.deleteNote(0);
         assertEquals(initialNoteCount - 1, main.getNotes().size(), "Number of remaining notes after deletion");;
@@ -134,7 +135,8 @@ public class NoteOrganizerTest extends TestBase {
     public void removeNoteWithCategories() {
         Note newNote = NoteTestHelper.createGenericTestNote();
         main.addNote(newNote);
-        String[] categories = new String[] {"category1", "category2", "category3"};
+        Category[] categories = new Category[] {
+                Category.of("category1"), Category.of("category2"), Category.of("category3")};
         main.addNoteToCategories(new HashSet<>(Arrays.asList(categories)), newNote);
         main.addCategory("category4");
         main.deleteNote(newNote);
@@ -234,7 +236,7 @@ public class NoteOrganizerTest extends TestBase {
     public void addMultipleNotesToCategory() {
         String categoryName = "testCategory";
         int expectedCount = 3;
-        List<NoteBase> noteList = addTestNotes(expectedCount,  main);
+        List<NoteBase> noteList = persistNewTestNotes(expectedCount,  main);
         main.addNotesToCategory(categoryName, noteList);
         assertEquals(expectedCount, main.getNotesForCategory(categoryName).size(),
                 "Number of notes in '" + categoryName + "'");
@@ -247,7 +249,7 @@ public class NoteOrganizerTest extends TestBase {
     @Test
     public void removeMultipleNotesFromCategory() {
         int expectedCount = 3;
-        List<NoteBase> noteList = addTestNotes(expectedCount, main);
+        List<NoteBase> noteList = persistNewTestNotes(expectedCount, main);
         main.addNotesToCategory(defaultCategoryName, noteList);
         for (int i = 0; i < expectedCount; i++) {
             main.removeNoteFromCategory(defaultCategoryName, noteList.get(i));
@@ -262,10 +264,12 @@ public class NoteOrganizerTest extends TestBase {
     public void addNoteToMultipleCategories() {
         Note newNote = NoteTestHelper.createGenericTestNote();
         main.addNote(newNote);
-        HashSet<String> categories = new HashSet<>(Arrays.asList("category1", "category2", "category3"));
+        HashSet<Category> categories = new HashSet<>(Arrays.asList(
+                Category.of("category1"), Category.of("category2"), Category.of("category3")));
         main.addNoteToCategories(categories, newNote);
-        for (String category : categories) {
-            assertTrue(main.getNotesForCategory(category).contains(newNote), "Category " + category + " contains note '" + newNote.getName() + "'");
+        for (Category cat : categories) {
+            assertTrue(main.getNotesForCategory(cat.getName()).contains(newNote), "Category " + cat
+                    + " contains note '" + newNote.getName() + "'");
         }
     }
 
@@ -273,12 +277,13 @@ public class NoteOrganizerTest extends TestBase {
     public void removeNoteFromMultipleCategories() {
         Note newNote = NoteTestHelper.createGenericTestNote();
         main.addNote(newNote);
-        HashSet<String> categories = new HashSet<>(Arrays.asList("category1", "category2", "category3"));
+        HashSet<Category> categories = new HashSet<>(
+                Arrays.asList(Category.of("category1"), Category.of("category2"), Category.of("category3")));
         main.addNoteToCategories(categories, newNote);
-        for (String category : categories) {
-            main.removeNoteFromCategory(category, newNote);
-            assertFalse(main.getNotesForCategory(category).contains(newNote),
-                    "Category " + category + " contains note '" + newNote.getName() + "'");
+        for (Category cat : categories) {
+            main.removeNoteFromCategory(cat.getName(), newNote);
+            assertFalse(main.getNotesForCategory(cat.getName()).contains(newNote),
+                    "Category " + cat + " contains note '" + newNote.getName() + "'");
         }
     }
 

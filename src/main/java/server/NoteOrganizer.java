@@ -7,8 +7,9 @@ import server.note.*;
 
 import java.util.*;
 
+// ToDo: Should be able to remove list of Notes and category tracking here since we are storing Note in DB, not memory?
 // ToDo: Track contacts by type (e.g. people and businesses)?
-// ToDo: Can just load all Notes from the DB each time (because presumably it's a small app)?
+// ToDo: Can just load all Notes from the DB each time and handle them in memory (because presumably it's a small app)?
 //  Have a mechanism to complete/deactivate notes and don't load them by default
 // ToDo: Add Javadoc (this is the main program / entry point)!
 //   E.g. user-defined versus internal categories
@@ -93,11 +94,11 @@ public class NoteOrganizer {
     }
 
     private void addNoteToCategories(NoteBase newNote) {
-        newNote.getCategories().forEach(cat -> addNoteToCategory(cat, newNote));
+        newNote.getCategories().forEach(cat -> addNoteToCategory(cat.getName(), newNote));
     }
 
-    public void addNoteToCategories(Set<String> categories, NoteBase newNote) {
-        categories.forEach(cat -> addNoteToCategory(cat, newNote));
+    public void addNoteToCategories(Set<Category> categories, NoteBase newNote) {
+        categories.forEach(cat -> addNoteToCategory(cat.getName(), newNote));
     }
 
     public void addNotesToCategory(String name, List<NoteBase> notes) {
@@ -134,7 +135,7 @@ public class NoteOrganizer {
     // Used when deleting a note
     private void removeNoteFromAllCategories(NoteBase note) {
         // We make a copy of note categories to avoid ConcurrentModificationException
-        new HashSet<>(note.getCategories()).forEach(cat -> removeNoteFromCategory(cat, note));
+        new HashSet<>(note.getCategories()).forEach(cat -> removeNoteFromCategory(cat.getName(), note));
     }
 
     public void deleteCategory(String name) {
@@ -181,7 +182,7 @@ public class NoteOrganizer {
     // ToDo: Should this return Set or List (if a note is in the list more than once should we return it multiple times)?
     public List<NoteBase> findMatchingNotes(SearchCriteria criteria) {
         List<NoteBase> searchNotes = criteria.hasCategories() ? criteria.getCategories().stream()
-                .flatMap(cat -> getNotesForCategory(cat).stream()).distinct().toList() : notes;
+                .flatMap(cat -> getNotesForCategory(cat.getName()).stream()).distinct().toList() : notes;
         // ToDo: Also filter on class type?
         return findMatchingNotes(searchNotes, criteria);
     }

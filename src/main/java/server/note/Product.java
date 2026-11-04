@@ -13,6 +13,8 @@ public class Product extends Note {
     @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "owner_id")
     private Entity owner;
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(name = "category_id", nullable = true)
     private Category type;
     private Price productPrice;
 
@@ -29,13 +31,14 @@ public class Product extends Note {
     public Entity getOwner() { return owner; }
     public Product setOwner(Entity newOwner) { owner = newOwner; return this; }
     public Category getType() { return type; }
-    // ToDo: Do I need to update Category tracking in NoteOrganizer for this?
+    // ToDo: Need to call persistCategoryIfNew() (in same session/transaction) to save type to DB
     public Product setType(Category type) {
         this.type = type;
-        if (categories.contains(type.getName())) {
-            LOG.warn("Product category already exists (cannot add): {}", type.getName());
+        if (categories.contains(type)) {
+            LOG.warn("Category already exists for Product '{}' (cannot add): {}", getName(), type.getName());
         }
         else {
+            // ToDo: Save Category to DB as well and update Product in DB
             this.addCategory(type.getName());
         }
         return this;
