@@ -15,7 +15,16 @@ Java/Gradle backend for a note-taking / to-do app ("Kevin's Todo App", Gradle pr
 ./gradlew test --tests "server.NoteOrganizerTest.someMethodName"  # single test method
 ```
 
-Java 21 (Gradle toolchain in `build.gradle`; tests use Java 21 APIs like `List.getFirst()`). `gradle-wrapper.properties` points at Gradle 6.9.4, but `./gradlew` currently fails with `NoClassDefFoundError: org/gradle/cli/CommandLineParser` (wrapper jar mismatch). Regenerate the wrapper (`gradle wrapper` with a local Gradle) or run tests from IntelliJ.
+Java 21 (Gradle toolchain in `build.gradle`; tests use Java 21 APIs like `List.getFirst()`). Use `./gradlew` (Gradle 8.14, pinned by the committed wrapper) - don't install a global Gradle, it won't match. The foojay resolver in `settings.gradle` downloads the Java 21 toolchain if it isn't installed.
+
+Full suite needs Postgres (see Database below):
+
+```bash
+docker-compose up -d postgres   # todo_postgres on localhost:5455
+DB_USERNAME=postgres DB_PASSWORD=postgres DB_PORT=5455 DB_TEST_NAME=todo_db ./gradlew test
+```
+
+Per-test results land in `build/test-results/test/TEST-*.xml`. Without the `DB_*` env vars `DBSanityTest` fails (properties file holds placeholders). To test a PR: `git fetch upstream pull/<N>/head:pr-<N>` and run it in a worktree.
 
 Developed in IntelliJ IDEA (both maintainers, Michael Paulukonis and Kevin Kraft) - `.idea/` project files are checked in. Expect IntelliJ's own test runner to be how this project is normally exercised day-to-day.
 
