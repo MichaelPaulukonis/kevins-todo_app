@@ -1,15 +1,18 @@
 package server;
 
+import server.categories.Category;
 import server.note.*;
 import server.categories.MediaType;
 import org.junit.jupiter.api.*;
-
 import java.util.*;
-import static server.NoteTestHelper.*;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static server.note.Contact.*;
+import static server.NoteTestHelper.*;
+import static server.database.HibernateUtil.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-// ToDo: Add initializeTestData() for more complex test scenarios
+// ToDo: Test scenarios to cover:
 //  - Note with 2 sub-note levels
 //  - Note with many sub-notes
 //  - Notes with and without categories
@@ -18,107 +21,128 @@ import static org.junit.jupiter.api.Assertions.*;
 public class SearchTest extends TestBase {
     // ToDo: Set up data providers for search tests after moving to TestNG
     @Test
-    public void getSingleNoteWithCategory() {
+    public void commitSingleNoteWithCategory() {
         Note newNote = NoteTestHelper.createGenericTestNote();
-        String mediaType = MediaType.SONG.toString();
-        newNote.addCategory(mediaType);
-        main.addNote(newNote);
-        SearchCriteria criteria = new SearchCriteria().setCategory(mediaType);
-        List<NoteBase> notes = main.findMatchingNotes(criteria);
-        assertEquals(1, notes.size(), "Number of notes with media type " + mediaType);
-        assertTrue(notes.contains(newNote), "Note list contains new note with media type " + mediaType);
-        // ToDo: Why do I have this remove assertion here?
-        assertTrue(notes.remove(newNote), "New note with media type " + mediaType + " is in list");
+        Category cat = Category.of(MediaType.SONG);
+        commitNoteWithCategories(newNote, Set.of(cat));
+        SearchCriteria criteria = new SearchCriteria().setCategory(cat);
+        // ToDo: Change this to HibernateUtil.runTransaction()?
+        runTestTransaction(session -> {
+            Note fetchedNote = retrieveNoteFromDB(session, newNote);
+            List<? extends NoteBase> notes = findMatchingNotesInDB(session, criteria);
+            assertEquals(1, notes.size(), "Number of notes with media type " + cat);
+            assertEquals(cat, fetchedNote.getCategories().iterator().next(), "Category for fetched Note");
+            assertTrue(notes.contains(fetchedNote), "Note list contains new note with media type " + cat);
+        });
     }
 
     @Test
     public void getMultipleNotesWithSameCategory() {
-        String mediaType = MediaType.SONG.name();
+        Category cat = Category.of(MediaType.SONG);
         int numberOfNotes = 3;
-        addNotesWithCategory(numberOfNotes, mediaType, main);
-        SearchCriteria criteria = new SearchCriteria().setCategory(mediaType);
-        List<NoteBase> notes = main.findMatchingNotes(criteria);
-        assertEquals(numberOfNotes, notes.size(), "Number of notes with media type " + mediaType);
+        commitNewNotesWithCategories(numberOfNotes, Set.of(cat));
+        runTestTransaction(session -> {
+            SearchCriteria criteria = new SearchCriteria().setCategory(cat);
+            List<? extends NoteBase> notes = findMatchingNotesInDB(session, criteria);
+            assertEquals(numberOfNotes, notes.size(), "Number of notes with media type " + cat);
+        });
     }
 
     @Test
     public void getMultipleNotesWithVariousCategories() {
         int numberOfNotes = 10;
-        int total = 0;
-        addNotesWithCategory(numberOfNotes, null, main);
-        for (String cat : getCategories(main)) {
-            SearchCriteria criteria = new SearchCriteria().setCategory(cat);
-            List<NoteBase> notes = main.findMatchingNotes(criteria);
-            assertEquals(numberOfNotesForCategory(cat, main), notes.size(),
-                    "Number of notes with media type " + cat);
-            total += notes.size();
-        }
-        assertEquals(numberOfNotes, total, "Total number of categorized notes");
+        commitNewNotesWithCategories(numberOfNotes, null);   // This creates notes with random categories
+        runTestTransaction(session -> {
+            int total = 0;
+            for (Category cat : retrieveCategoriesFromDB(session)) {
+                SearchCriteria criteria = new SearchCriteria().setCategory(cat);
+                List<? extends NoteBase> notes = findMatchingNotesInDB(session, criteria);
+                assertEquals(retrieveNotesForCategory(session, cat).size(), notes.size(),
+                        "Number of notes with media type " + cat);
+                total += notes.size();
+            }
+            assertEquals(numberOfNotes, total, "Total number of categorized notes");
+        });
     }
 
     @Test
     public void getCategorizedNotesFromListContainingCategorizedAndUncategorizedNotes() {
         int numberOfCategorizedNotes = 10;
         int numberOfUncategorizedNotes = 5;
-        int total = 0;
-        addNotesWithCategory(numberOfCategorizedNotes, null, main);
+        commitNewNotesWithCategories(numberOfCategorizedNotes, null);    // Create notes with random categories
+        System.out.println("Number of Notes after first add: " + retrieveNotes(testSession).size());
         // This is identical to the above test except for this line adding uncategorized notes
-        addTestNotes(numberOfUncategorizedNotes, main);
-        assertEquals(numberOfCategorizedNotes + numberOfUncategorizedNotes, main.getNotes().size(),
-                "Total number of notes");
-        for (String cat : getCategories(main)) {
-            SearchCriteria criteria = new SearchCriteria().setCategory(cat);
-            List<NoteBase> notes = main.findMatchingNotes(criteria);
-            assertEquals(numberOfNotesForCategory(cat, main), notes.size(),
-                    "Number of notes with media type " + cat);
-            total += notes.size();
-        }
-        assertEquals(numberOfCategorizedNotes, total, "Total number of tagged notes");
+        commitNewNotesWithCategories(numberOfUncategorizedNotes, Set.of());        // Create uncategorized notes
+        System.out.println("Number of Notes after second add: " + retrieveNotes(testSession).size());
+        runTestTransaction(session -> {
+            assertEquals(numberOfCategorizedNotes + numberOfUncategorizedNotes, retrieveNotes(session).size(),
+                    "Total number of notes");
+            int total = 0;
+            for (Category cat : retrieveCategoriesFromDB(session)) {
+                SearchCriteria criteria = new SearchCriteria().setCategory(cat);
+                List<? extends NoteBase> notes = findMatchingNotesInDB(session, criteria);
+                assertEquals(notes.size(), retrieveNotesForCategory(session, cat).size(),
+                        "Number of notes with media type " + cat);
+                total += notes.size();
+            }
+            assertEquals(numberOfCategorizedNotes, total, "Total number of tagged notes");
+        });
     }
 
     @Test
-    public void tryGettingCategorizedNotesFromListContainingOnlyUncategorizedNotes() {
-        addTestNotes(10, main);     // These are uncategorized notes
-        assertEquals(0, NoteTestHelper.numberOfCategories(main), "Number of test categories tracked");
-        for (String cat : MediaType.get().convertToStrings()) {
-            SearchCriteria criteria = new SearchCriteria().setCategory(cat);
-            List<NoteBase> notes = main.findMatchingNotes(criteria);
-            assertEquals(0, notes.size(), "Number of notes with media type " + cat);
-        }
+    public void tryGettingCategorizedNotesFromDBWithOnlyUncategorizedNotes() {
+        commitNewNotesWithCategories(10, Set.of());   // Create uncategorized notes
+        runTestTransaction(session -> {
+            assertEquals(0, retrieveCategoriesFromDB(session).size(), "Number of test categories tracked");
+            for (String cat : MediaType.get().convertToStrings()) {
+                SearchCriteria criteria = new SearchCriteria().setCategory(cat);
+                List<? extends NoteBase> notes = findMatchingNotesInDB(session, criteria);
+                assertEquals(0, notes.size(), "Number of notes with media type " + cat);
+            }
+        });
     }
 
+    // ToDo: Not sure how useful this test is
     @Test
-    public void tryGettingCategorizedNotesFromEmptyList() {
-        // The list of test notes is empty by default
-        assertEquals(0, numberOfCategories(main), "Number of test categories tracked");
-        for (String cat : MediaType.get().convertToStrings()) {
-            SearchCriteria criteria = new SearchCriteria().setCategory(cat);
-            List<NoteBase> notes = main.findMatchingNotes(criteria);
-            assertEquals(0, notes.size(), "Number of notes with media type " + cat);
-        }
+    public void tryGettingCategorizedNotesFromEmptyDB() {
+        runTestTransaction(session -> {
+            // The DB is empty by default
+            assertEquals(0, retrieveCategoriesFromDB(session).size(), "Number of test categories tracked");
+            for (String cat : MediaType.get().convertToStrings()) {
+                SearchCriteria criteria = new SearchCriteria().setCategory(cat);
+                List<? extends NoteBase> notes = findMatchingNotesInDB(session, criteria);
+                assertEquals(0, notes.size(), "Number of notes with media type " + cat);
+            }
+        });
     }
 
     // ToDo: Add test for trying to get tagged note from list that doesn't contain the tag
 
     @Test
     public void getCategorizedNotesWithOrRelationship() {
-        Set<String> categories = createNotesWithMultipleCategories(main);
-        SearchCriteria criteria = new SearchCriteria().setCategories(categories);
-        List<NoteBase> orResult = main.findMatchingNotes(criteria);    // Matching is done via OR" by default
-        assertEquals(partitionCount*3, orResult.size(), "Number of notes with any queried categories");
+        Set<Category> categories = commitNotesWithMultipleCategories();
+        runTestTransaction(session -> {
+            // SearchCriteria does an "OR" match by default
+            SearchCriteria criteria = new SearchCriteria().setCategories(categories).setNoteClass(Note.class);
+            List<? extends NoteBase> orResult = findMatchingNotesInDB(session, criteria);
+            // System.out.println("Categories: " + categories.stream().map(Category::getName).collect(Collectors.toSet()));
+            assertEquals(partitionCount*3, orResult.size(), "Number of notes with any queried categories");
+        });
     }
 
     @Test
     public void getCategorizedNotesWithAndRelationship() {
-        Set<String> categories = createNotesWithMultipleCategories(main);
-        SearchCriteria criteria = new SearchCriteria().setCategories(categories).joinWithAnd();
-        List<NoteBase> andResult = main.findMatchingNotes(criteria);
-        assertEquals(partitionCount, andResult.size(), "Number of notes with all queried categories");
+        Set<Category> categories = commitNotesWithMultipleCategories();
+        runTestTransaction(session -> {
+            SearchCriteria criteria = new SearchCriteria().setCategories(categories).joinWithAnd();
+            List<? extends NoteBase> andResult = findMatchingNotesInDB(session, criteria);
+            assertEquals(partitionCount, andResult.size(), "Number of notes with all queried categories");
+        });
     }
 
     @Test
     public void getNotesByClass() {
-        addTestNotes(3, main);
+        persistNewTestNotes(3, main);
         Contact contact = newPerson("Jane", "Doe");
         main.addNote(contact);
         SearchCriteria criteria = new SearchCriteria().setNoteClass(Contact.class);
@@ -182,7 +206,7 @@ public class SearchTest extends TestBase {
 
     @Test
     public void getNotesByNameAndCategory() {
-        Set<String> categories = createNotesWithMultipleCategories(main);
+        Set<Category> categories = createNotesWithMultipleCategories(main);
         String name = "Test Note";   // This is the default name for test notes
         SearchCriteria criteria = new SearchCriteria().setCategories(categories).joinWithAnd().setNameMatch(name);
         List<NoteBase> andResult = main.findMatchingNotes(criteria);
@@ -192,7 +216,7 @@ public class SearchTest extends TestBase {
     @Test
     public void getNotesByNamePatternAndCategory() {
         String pattern = "T.* N.*";
-        Set<String> categories = createNotesWithMultipleCategories(main);
+        Set<Category> categories = createNotesWithMultipleCategories(main);
         SearchCriteria criteria = new SearchCriteria().setCategories(categories).joinWithAnd()
                 .setNameMatch(pattern).doPatternMatch();
         List<NoteBase> andResult = main.findMatchingNotes(criteria);
@@ -204,7 +228,7 @@ public class SearchTest extends TestBase {
     public void getNotesByNameClassAndCategory() {
         createScheduleItemTestBed(main);
         String name = "Event";
-        Set<String> categories = Set.of("Category1", "Category2");
+        Set<Category> categories = Set.of(Category.of("Category1"), Category.of("Category2"));
         main.addNoteToCategories(categories, main.getNote(0));
         main.addNoteToCategories(categories, main.getNote(1));
         main.addNoteToCategory("Category1", main.getNote(2));
@@ -219,7 +243,7 @@ public class SearchTest extends TestBase {
     public void getNotesByNamePatternClassAndCategory() {
         createScheduleItemTestBed(main);
         String pattern = "Event \\d";
-        Set<String> categories = Set.of("Category1", "Category2");
+        Set<Category> categories = Set.of(Category.of("Category1"), Category.of("Category2"));
         main.addNoteToCategories(categories, main.getNote(0));
         main.addNoteToCategories(categories, main.getNote(1));
         main.addNoteToCategory("Category1", main.getNote(2));

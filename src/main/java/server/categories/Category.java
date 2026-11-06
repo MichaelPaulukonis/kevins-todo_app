@@ -1,14 +1,20 @@
 package server.categories;
 
-import jakarta.persistence.Embeddable;
+import jakarta.persistence.*;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.KeywordField;
+
 import java.util.Objects;
 
-@Embeddable
+@Entity
+@Table(name = "categories")
 public class Category {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
     // Note that name is required to be unique, since it is used to define equals() and hashCode().
-    // That requirement will have to be enforced when adding categories in NoteOrganizer.
+    @KeywordField   // For exact matches - use @FullTextField to allow pattern matching
+    @Column(name = "category_name", nullable = false, unique = true)
     private String categoryName;
-
     protected Category() {}  // Required zero-arg constructor for Hibernate
 
     // Factory method for user-defined string categories
@@ -25,6 +31,7 @@ public class Category {
     public String getName() {
         return categoryName;
     }
+    public Long getId() { return id; }
 
     // A clean helper to check if this category matches an internal enum type
     public boolean validCategory(Enum<?> internalType) {
@@ -40,4 +47,7 @@ public class Category {
 
     @Override
     public int hashCode() { return Objects.hash(categoryName); }
+
+    @Override
+    public String toString() { return categoryName; }
 }

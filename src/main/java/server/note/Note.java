@@ -14,7 +14,7 @@ import java.util.List;
 @DiscriminatorValue("NOTE")
 public class Note extends NoteBase {
     // Maps the relationship using the 'parent' field declared in NoteBase
-    @OrderColumn
+    @OrderColumn    // ToDo: Recomments using @OrderBy instead
     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
     protected List<NoteBase> childNotes = new ArrayList<>();    // ToDo: Rename "children"?
     @OrderColumn

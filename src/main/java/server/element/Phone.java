@@ -6,6 +6,7 @@ import jakarta.persistence.Enumerated;
 
 import java.util.Objects;
 
+// ToDo: For @Embeddable classes I should create a new instance in the DB and delete the old one if the values change
 @Embeddable
 public class Phone {
     // ToDo: Support String customPhoneType for user-defined phone types?

@@ -4,8 +4,9 @@ import jakarta.persistence.DiscriminatorValue;
 
 // Includes Contact, Person, Company, Artist, etc.
 // Need to use fully-qualified name to distinguish the annotation from this class
-// ToDo: Override equals() and hashCode() for this class?
-@jakarta.persistence.Entity
+// ToDo: Override equals() and hashCode() for this (and other Note/Entity classes)?
+// ToDo: Do I still need name = "EntityType" here?
+@jakarta.persistence.Entity(name = "EntityType")
 @DiscriminatorValue("ENTITY")
 public class Entity extends Note {
     // ToDo: Support String customType for user-defined types (e.g. like "Band", "Author", "Client", etc.)?

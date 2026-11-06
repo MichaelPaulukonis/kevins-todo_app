@@ -1,17 +1,22 @@
 package server;
 
+import org.hibernate.Session;
+import org.junit.jupiter.api.Assertions;
 import server.categories.Category;
 import server.categories.MediaType;
+import server.database.HibernateUtil;
 import server.element.Address;
 import server.element.Phone;
 import server.note.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static server.note.Contact.*;
 
-public class NoteTestHelper {
+public class NoteTestHelper extends HibernateUtil {
     private static final Random rand = new Random();
     private static final int defaultElementCount = 5;
     private static int noteNumber = 0;
@@ -71,21 +76,6 @@ public class NoteTestHelper {
         };
     }
 
-    // ToDo: Replace these methods with a NoteBuilder class?
-    //  * Can probably delete these next four methods (but need a way to mass-produce test note data)
-    //  * Will this work with polymorphism? Need a factory instead?
-    //  * Define a constructor taking required parameters (title)
-    //  * Define methods for adding other parameters
-    //  * Define a build() method that calls the constructor and returns the note object
-    //    Or maybe a factory class?
-    protected static Note createGenericTestNoteWithRandomElements() {
-        return createGenericTestNoteWithRandomElements(null, defaultElementCount);
-    }
-
-    protected static Note createGenericTestNoteWithRandomElements(String baseName) {
-        return createGenericTestNoteWithRandomElements(baseName, defaultElementCount);
-    }
-
     protected static Note createGenericTestNoteWithRandomElements(int numberOfElements) {
         return createGenericTestNoteWithRandomElements(null, numberOfElements);
     }
@@ -102,13 +92,21 @@ public class NoteTestHelper {
         note.getChildNotes().clear();
     }
 
+    protected static List<NoteBase> createTestNotes(int noteCount) {
+        List<NoteBase> newNotes = new ArrayList<>(noteCount);
+        for (int i = 0; i < noteCount; i++) {
+            newNotes.add(createGenericTestNote());
+        }
+        return newNotes;
+    }
+
     protected static NoteBase addTestNote(NoteOrganizer main) {
         NoteBase testNote = createGenericTestNote();
         main.addNote(testNote);
         return testNote;
     }
 
-    protected static List<NoteBase> addTestNotes(int noteCount, NoteOrganizer main) {
+    protected static List<NoteBase> persistNewTestNotes(int noteCount, NoteOrganizer main) {
         List<NoteBase> newNotes = new ArrayList<>(noteCount);
         // ToDo: Use index in note name?
         for (int i = 0; i < noteCount; i++) {
@@ -126,22 +124,13 @@ public class NoteTestHelper {
         return getCategories(main).size();
     }
 
-    public static int numberOfNotesForCategory(String cat, NoteOrganizer main) {
-        return main.getNotesForCategory(cat).size();
-    }
-
-    public static void addNotesWithCategory(int numberOfNotes, String category, NoteOrganizer main) {
+    // Assigns random categories if categories is null
+    public static void commitNewNotesWithCategories(int numberOfNotes, Set<Category> categories) {
         for (int i = 0; i < numberOfNotes; i++) {
-            // ToDo: Use index in note name?
-            addNoteWithCategory(category, main);
+            Set<Category> testCats = categories == null ?
+                    Set.of(Category.of(MediaType.get().getRandomTag())) : categories;
+            commitNoteWithCategories(NoteTestHelper.createGenericTestNote(), testCats);
         }
-    }
-
-    public static void addNoteWithCategory(String cat, NoteOrganizer main) {
-        String newCat = cat == null ? MediaType.get().getRandomTag().toString() : cat;
-        NoteBase newNote = NoteTestHelper.createGenericTestNote().addCategory(newCat);
-        // System.out.println(newNote);
-        main.addNote(newNote);
     }
 
     // Add 4 ScheduleItem notes in non-date order (should be automatically sorted)
@@ -168,9 +157,9 @@ public class NoteTestHelper {
     // ToDo: Document this method (I think the idea is to return notes with BOOK, FILM, both, or no tags)
     static final int partitionCount = 4;
     // Creates notes for testing AND and OR category queries
-    public static Set<String> createNotesWithMultipleCategories(NoteOrganizer main) {
+    public static Set<Category> createNotesWithMultipleCategories(NoteOrganizer main) {
         int offset = main.getNotes().size();
-        addTestNotes(partitionCount*3, main);
+        persistNewTestNotes(partitionCount*3, main);
         for (int i = 0; i < partitionCount*3; i++) {
             NoteBase note = main.getNotes().get(i + offset);
             if (i < partitionCount*2) {
@@ -180,6 +169,81 @@ public class NoteTestHelper {
                 main.addNoteToCategory(MediaType.FILM.name(), note);
             }
         }
-        return Set.of(MediaType.BOOK.name(), MediaType.FILM.name());
+        return Set.of(Category.of(MediaType.BOOK.name()), Category.of(MediaType.FILM.name()));
+    }
+
+    /**
+     * This creates and commits the categories to the DB, adds them to the notes, and then commits the notes.
+     *
+     * @return
+     */
+    public static Set<Category> commitNotesWithMultipleCategories() {
+        AtomicReference<List<Category>> categoriesRef = new AtomicReference<>();
+        trxMgr.runTransaction(testSession -> {
+            Set<Category> categories = Set.of(Category.of(MediaType.BOOK), Category.of(MediaType.FILM));
+            List<Category> fetchedCategories = persistCategoriesIfNew(testSession, categories)
+                    .stream().toList();
+            categoriesRef.set(fetchedCategories);
+            List<? extends NoteBase> notes = createTestNotes(partitionCount*3);
+            for (int i = 0; i < partitionCount*3; i++) {
+                NoteBase note = notes.get(i);
+                if (i < partitionCount * 2) {
+                    note.addCategory(fetchedCategories.getFirst());
+                }
+                if (i >= partitionCount) {
+                    note.addCategory(fetchedCategories.get(1));
+                }
+                testSession.persist(note);
+            }
+        });
+        return Set.copyOf(categoriesRef.get());
+    }
+
+    public static NoteBase getSimpleNote() {
+        return new NoteBase("Simple Note 1", "Simple NoteBase object");
+    }
+
+    public static Note getTestNote() {
+        return new Note("Note#" + noteNumber, "Testing note #" + noteNumber++);
+    }
+
+    private static int personNumber = 1;
+    protected static Contact getTestPerson() {
+        return Contact.newPerson("FirstName" + personNumber, "LastName" + personNumber++);
+    }
+
+    private static int businessNumber = 1;
+    public static Contact getTestBusiness() {
+        return Contact.newBusiness("Business#" + businessNumber, "Description for business #" + businessNumber++);
+    }
+
+    public static Link getGoogleLink() {
+        return new Link("Google", null, "http://google.com");
+    }
+
+    public static Entity getTestArtist() {
+        return new Entity("Grand Funk", null, Entity.EntityType.ARTIST);
+    }
+
+    private static int productNumber = 1;
+    public static Product getTestProduct() {
+        return new Product("Product#" + productNumber++)
+                .setOwner(getTestArtist()).setPrice(5.99).setType(MediaType.SONG);
+    }
+
+    private static int eventNumber = 1;
+    public static ScheduleItem getTestScheduleItem() {
+        return new ScheduleItem("Event#" + eventNumber, null, LocalDateTime.now().plusDays(eventNumber++));
+    }
+
+    public static <T extends NoteBase> T commitAndRetrieveNote(T note) {
+        AtomicReference<T> fetchedNote = new AtomicReference<>();
+        trxMgr.runTransaction(testSession -> {
+            testSession.persist(note);
+            testSession.flush();
+            fetchedNote.set(retrieveNoteFromDB(testSession, note));
+        });
+        assert fetchedNote.get() != null : "Failed to fetch " + note.getClass() + " with ID " + note.getId();
+        return fetchedNote.get();
     }
 }

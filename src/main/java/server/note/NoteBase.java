@@ -4,14 +4,25 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Collectors;
+
+import jakarta.persistence.Entity;
+import org.hibernate.search.engine.backend.types.ObjectStructure;
+import org.hibernate.search.mapper.pojo.automaticindexing.ReindexOnUpdate;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.*;
+import server.categories.Category;
+import server.categories.InternalCategory;
+
+import static server.database.HibernateUtil.*;
 
 /**
  * This is the base class for all Note objects. It can be used for leaf-type notes with no child elements.
  */
-// ToDo: Per Gemini I should override hashCode() and equals() for @Entity classes as well
-@jakarta.persistence.Entity
+// ToDo: Provide separate logger here for Note classes (instead of server.NoteUtils.LOG)?
+@Entity
 @Table(name = "note_base")
 @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@Indexed
 @DiscriminatorColumn(name = "note_type", discriminatorType = DiscriminatorType.STRING)
 @DiscriminatorValue("SIMPLE_NOTE")
 public class NoteBase {
@@ -22,11 +33,17 @@ public class NoteBase {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_note_id")
     private Note parent;
+    // ToDo: Annotate this with @KeywordField for pattern or contains() searches?
+    //  - Per Gemini @FullTextField enables case-insensitivity by default
     protected String name;
     protected String description;
     // ToDo: Should a child Note inherit its parent's categories (maybe conceptually but not literally)?
-    // ToDo: Do I need to track categories at the Note level (does a Note need to know its categories)?
-    protected Set<String> categories = new HashSet<>();
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(name = "note_categories", joinColumns = @JoinColumn(name = "note_id"),
+            inverseJoinColumns = @JoinColumn(name = "category_id"))
+    @IndexedEmbedded(structure = ObjectStructure.NESTED)
+    @IndexingDependency(reindexOnUpdate = ReindexOnUpdate.SHALLOW)
+    protected Set<Category> categories = new HashSet<>();
     private final LocalDateTime created = LocalDateTime.now();
     private Boolean completed = false;
 
@@ -60,11 +77,17 @@ public class NoteBase {
     public String getDescription() { return description; }
     public NoteBase setDescription(String newDescription) { description = newDescription; return this; }
     // ToDo: Add Javadoc
-    public Set<String> getCategories() { return categories; }
+    public Set<Category> getCategories() { return categories; }
     // Note that these category methods do NOT update the NoteOrganizer category tracker!
-    public NoteBase addCategory(String category) { categories.add(category); return this; }
-    public NoteBase removeCategory(String cat) { categories.remove(cat); return this; }
-    public NoteBase addCategories(Set<String> cats) { categories.addAll(cats); return this; }
+    public NoteBase addCategory(Category cat) { categories.add(cat); return this; }
+    public NoteBase addCategory(String cat) { categories.add(Category.of(cat)); return this; }
+    public NoteBase addCategory(InternalCategory cat) { categories.add(Category.of(cat)); return this; }
+    public NoteBase removeCategory(String cat) { categories.remove(Category.of(cat)); return this; }
+    public NoteBase addCategories(Set<String> cats) {
+        categories.addAll(cats.stream().map(Category::of).collect(Collectors.toSet()));
+
+        return this;
+    }
     public LocalDateTime getDateCreated() { return created; }
     public boolean getCompleted() { return completed != null && completed; }
     public NoteBase setCompleted(boolean isCompleted) { completed = isCompleted; return this; }
@@ -75,5 +98,13 @@ public class NoteBase {
     public boolean hasAnyCategory(Set<String> cats) {
         return cats == null || cats.isEmpty() || cats.stream().anyMatch(cat -> categories.contains(cat));
     }
+
+    // 'equals()' should check the class of its parameter
+    @Override
+    public boolean equals(Object obj) { return equalsHelper(this, obj); }
+
+    @Override
+    // Apparently this is a standard Hibernate kludge (HashSet falls back to equals() for resolving collisions)
+    public int hashCode() { return getClass().hashCode(); }
     // ToDo: Support toString() method?
 }
