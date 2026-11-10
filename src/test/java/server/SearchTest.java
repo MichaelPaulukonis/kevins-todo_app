@@ -5,11 +5,9 @@ import server.note.*;
 import server.categories.MediaType;
 import org.junit.jupiter.api.*;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static server.note.Contact.*;
 import static server.NoteTestHelper.*;
-import static server.database.HibernateUtil.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 // ToDo: Test scenarios to cover:
@@ -18,17 +16,20 @@ import static org.junit.jupiter.api.Assertions.*;
 //  - Notes with and without categories
 //  - Sub-notes with and without categories
 //  - Notes and sub-notes with different class types
+// ToDo: Add tests for various note types, categories, and child notes (need to set up test data)
+//  * Search in sub-notes
 public class SearchTest extends TestBase {
     // ToDo: Set up data providers for search tests after moving to TestNG
     @Test
     public void commitSingleNoteWithCategory() {
-        Note newNote = NoteTestHelper.createGenericTestNote();
         Category cat = Category.of(MediaType.SONG);
-        commitNoteWithCategories(newNote, Set.of(cat));
-        SearchCriteria criteria = new SearchCriteria().setCategory(cat);
+        Note newNote = NoteTestHelper.createGenericTestNote();
+        newNote.addCategory(cat);
+        commitObjectToDB(newNote);
         // ToDo: Change this to HibernateUtil.runTransaction()?
         runTestTransaction(session -> {
             Note fetchedNote = retrieveNoteFromDB(session, newNote);
+            SearchCriteria criteria = new SearchCriteria().setCategory(cat);
             List<? extends NoteBase> notes = findMatchingNotesInDB(session, criteria);
             assertEquals(1, notes.size(), "Number of notes with media type " + cat);
             assertEquals(cat, fetchedNote.getCategories().iterator().next(), "Category for fetched Note");
@@ -40,7 +41,7 @@ public class SearchTest extends TestBase {
     public void getMultipleNotesWithSameCategory() {
         Category cat = Category.of(MediaType.SONG);
         int numberOfNotes = 3;
-        commitNewNotesWithCategories(numberOfNotes, Set.of(cat));
+        commitTestNotesWithCategories(numberOfNotes, Set.of(cat));
         runTestTransaction(session -> {
             SearchCriteria criteria = new SearchCriteria().setCategory(cat);
             List<? extends NoteBase> notes = findMatchingNotesInDB(session, criteria);
@@ -51,7 +52,7 @@ public class SearchTest extends TestBase {
     @Test
     public void getMultipleNotesWithVariousCategories() {
         int numberOfNotes = 10;
-        commitNewNotesWithCategories(numberOfNotes, null);   // This creates notes with random categories
+        commitTestNotesWithCategories(numberOfNotes, null);   // This creates notes with random categories
         runTestTransaction(session -> {
             int total = 0;
             for (Category cat : retrieveCategoriesFromDB(session)) {
@@ -66,14 +67,12 @@ public class SearchTest extends TestBase {
     }
 
     @Test
-    public void getCategorizedNotesFromListContainingCategorizedAndUncategorizedNotes() {
+    public void getCategorizedNotesFromDBContainingCategorizedAndUncategorizedNotes() {
         int numberOfCategorizedNotes = 10;
         int numberOfUncategorizedNotes = 5;
-        commitNewNotesWithCategories(numberOfCategorizedNotes, null);    // Create notes with random categories
-        System.out.println("Number of Notes after first add: " + retrieveNotes(testSession).size());
+        commitTestNotesWithCategories(numberOfCategorizedNotes, null);    // Create notes with random categories
         // This is identical to the above test except for this line adding uncategorized notes
-        commitNewNotesWithCategories(numberOfUncategorizedNotes, Set.of());        // Create uncategorized notes
-        System.out.println("Number of Notes after second add: " + retrieveNotes(testSession).size());
+        commitTestNotesWithCategories(numberOfUncategorizedNotes, Set.of());        // Create uncategorized notes
         runTestTransaction(session -> {
             assertEquals(numberOfCategorizedNotes + numberOfUncategorizedNotes, retrieveNotes(session).size(),
                     "Total number of notes");
@@ -91,7 +90,7 @@ public class SearchTest extends TestBase {
 
     @Test
     public void tryGettingCategorizedNotesFromDBWithOnlyUncategorizedNotes() {
-        commitNewNotesWithCategories(10, Set.of());   // Create uncategorized notes
+        commitTestNotesWithCategories(10, Set.of());   // Create uncategorized notes
         runTestTransaction(session -> {
             assertEquals(0, retrieveCategoriesFromDB(session).size(), "Number of test categories tracked");
             for (String cat : MediaType.get().convertToStrings()) {
@@ -142,33 +141,38 @@ public class SearchTest extends TestBase {
 
     @Test
     public void getNotesByClass() {
-        persistNewTestNotes(3, main);
         Contact contact = newPerson("Jane", "Doe");
-        main.addNote(contact);
-        SearchCriteria criteria = new SearchCriteria().setNoteClass(Contact.class);
-        List<NoteBase> result = main.findMatchingNotes(criteria);
-        assertEquals(List.of(contact), result, "Notes matching class Contact");
+        commitObjectToDB(contact);
+        commitNewTestNotes(3);
+        runTestTransaction(session -> {
+            SearchCriteria criteria = new SearchCriteria().setNoteClass(Contact.class);
+            List<? extends NoteBase> result = findMatchingNotesInDB(session, criteria);
+            assertEquals(List.of(contact), result, "Notes matching class Contact");
+        });
     }
 
+    // Defining static Note types for tests is dangerous because they are cached with Note IDs and cause duplicate errors
+    static final List<String> testNoteNames = List.of("Grocery list", "Hardware list", "Birthday ideas");
     @Test
     public void getNotesByPartialName() {
-        main.addNote(new Note("Grocery list"));
-        main.addNote(new Note("Hardware list"));
-        main.addNote(new Note("Birthday ideas"));
-        SearchCriteria criteria = new SearchCriteria().setNameMatch("LIST");
-        List<NoteBase> result = main.findMatchingNotes(criteria);
-        assertEquals(2, result.size(), "Notes with name containing 'list' (case-insensitive)");
+        commitTestNotesWithNames(testNoteNames);
+        // ToDo: This doesn't handle case-insensitive search
+        SearchCriteria criteria = new SearchCriteria().setNameMatch("list");
+        runTestTransaction(session -> {
+            List<? extends NoteBase> result = findMatchingNotesInDB(session, criteria);
+            assertEquals(2, result.size(), "Notes with name containing 'list' (case-insensitive)");
+        });
     }
 
     @Test
     public void getNotesByPatternMatch() {
-        String pattern = ".* LIST$";
-        main.addNote(new Note("Grocery list"));
-        main.addNote(new Note("Hardware list"));
-        main.addNote(new Note("Birthday ideas"));
+        String pattern = ".* list";
+        commitTestNotesWithNames(testNoteNames);
         SearchCriteria criteria = new SearchCriteria().setNameMatch(pattern).doPatternMatch();
-        List<NoteBase> result = main.findMatchingNotes(criteria);
-        assertEquals(2, result.size(), "Notes with name matching pattern '" +  pattern + "'");
+        runTestTransaction(session -> {
+            List<? extends NoteBase> result = findMatchingNotesInDB(session, criteria);
+            assertEquals(2, result.size(), "Notes with name matching pattern '" +  pattern + "'");
+        });
     }
 
     @Test
@@ -177,89 +181,121 @@ public class SearchTest extends TestBase {
         Note parent = new Note("Parent");
         Note child = new Note("Child");
         child.addCategory(mediaType);
-        main.addNote(parent);
-        main.addChildNote(parent, child);
+        parent.addChildNote(child);
+        commitObjectToDB(parent);
         SearchCriteria criteria = new SearchCriteria().setCategory(mediaType);
-        assertEquals(List.of(child), main.findMatchingNotes(criteria), "Child notes searched");
+        runTestTransaction(session -> {
+            assertEquals(List.of(child), findMatchingNotesInDB(session, criteria), "Child notes searched");
+        });
     }
 
     @Test
     public void getNotesByNameAndClass() {
-        createScheduleItemTestBed(main);
+        createScheduleItemTestBed();
         String name = "Test Name 1";
-        main.getNote(0).setName(name);
+        commitObjectToDB(new ScheduleItem(name, null, "2020-07-01 09:00:00 PM"));
         SearchCriteria criteria = new SearchCriteria().setNoteClass(ScheduleItem.class).setNameMatch(name);
-        List<NoteBase> andResult = main.findMatchingNotes(criteria);
-        assertEquals(1, andResult.size(),
-                "Number of ScheduleItem notes with name '" + name + "'");
+        runTestTransaction(session -> {
+            List<? extends NoteBase> andResult = findMatchingNotesInDB(session, criteria);
+            assertEquals(1, andResult.size(),
+                    "Number of ScheduleItem notes with name '" + name + "'");
+        });
     }
 
     @Test
     public void getNotesByNamePatternAndClass() {
-        createScheduleItemTestBed(main);
-        assertEquals(5, main.getNotesForType(ScheduleItem.class).size(), "Number of ScheduleItem notes");
-        String pattern = "Event [1-3]";
-        SearchCriteria criteria = new SearchCriteria().setNoteClass(ScheduleItem.class).setNameMatch(pattern).doPatternMatch();
-        List<NoteBase> andResult = main.findMatchingNotes(criteria);
-        assertEquals(3, andResult.size(), "Number of ScheduleItem notes with name matching pattern '" + pattern + "'");
+        createScheduleItemTestBed();
+        runTestTransaction(session -> {
+            SearchCriteria criteria = new SearchCriteria().setNoteClass(ScheduleItem.class);
+            assertEquals(5, findMatchingNotesInDB(session, criteria).size(), "Total number of ScheduleItem notes");
+            String pattern = "Event [1-3]";
+            criteria.setNameMatch(pattern).doPatternMatch();
+            assertEquals(3, findMatchingNotesInDB(session, criteria).size(),
+                    "Number of ScheduleItem notes with name matching pattern '" + pattern + "'");
+        });
     }
 
     @Test
     public void getNotesByNameAndCategory() {
-        Set<Category> categories = createNotesWithMultipleCategories(main);
-        String name = "Test Note";   // This is the default name for test notes
-        SearchCriteria criteria = new SearchCriteria().setCategories(categories).joinWithAnd().setNameMatch(name);
-        List<NoteBase> andResult = main.findMatchingNotes(criteria);
-        assertEquals(partitionCount, andResult.size(), "Number of notes with categories and name '" + name + "'");
+        Set<Category> categories = commitNotesWithMultipleCategories();
+        runTestTransaction(session -> {
+            SearchCriteria criteria = new SearchCriteria().setCategories(categories).joinWithAnd()
+                    .setNameMatch(defaultBaseName);
+            List<? extends NoteBase> andResult = findMatchingNotesInDB(session, criteria);
+            assertEquals(partitionCount, andResult.size(), "Number of notes with categories and name '"
+                    + defaultBaseName + "'");
+        });
     }
 
     @Test
     public void getNotesByNamePatternAndCategory() {
         String pattern = "T.* N.*";
-        Set<Category> categories = createNotesWithMultipleCategories(main);
+        Set<Category> categories = commitNotesWithMultipleCategories();
         SearchCriteria criteria = new SearchCriteria().setCategories(categories).joinWithAnd()
                 .setNameMatch(pattern).doPatternMatch();
-        List<NoteBase> andResult = main.findMatchingNotes(criteria);
-        assertEquals(partitionCount, andResult.size(), "Number of notes with categories and name matching pattern '"
-                + pattern + "'");
+        runTestTransaction(session -> {
+            List<? extends NoteBase> andResult = findMatchingNotesInDB(session, criteria);
+            assertEquals(partitionCount, andResult.size(), "Number of notes with categories and name matching pattern '"
+                    + pattern + "'");
+        });
     }
 
+    static final Set<Category> testCategories = Set.of(Category.of("Category1"), Category.of("Category2"));
+    static final String baseName = "Event";
     @Test
     public void getNotesByNameClassAndCategory() {
-        createScheduleItemTestBed(main);
-        String name = "Event";
-        Set<Category> categories = Set.of(Category.of("Category1"), Category.of("Category2"));
-        main.addNoteToCategories(categories, main.getNote(0));
-        main.addNoteToCategories(categories, main.getNote(1));
-        main.addNoteToCategory("Category1", main.getNote(2));
+        createScheduleItemTestBed();
+        // ToDo: It would be really nice to have some kind of generic Note creation factory
+        //  - For now just create ScheduleItem notes in memory, add the categories, and then commit
+        runTestTransaction(session -> {
+            ScheduleItem item6 = new ScheduleItem(baseName + " 6", null, "2020-07-07 09:00:00 PM");
+            item6.addCategories(testCategories);
+            persistObjectToDB(session, item6);
+            ScheduleItem item7 = new ScheduleItem(baseName + " 7", null, "2020-07-08 09:00:00 PM");
+            item7.addCategories(testCategories);
+            persistObjectToDB(session, item7);
+            ScheduleItem item8 = new ScheduleItem(baseName + " 8", null, "2020-07-09 09:00:00 PM");
+            item8.addCategory(Category.of("Category1"));
+            persistObjectToDB(session, item8);
+        });
         SearchCriteria criteria = new SearchCriteria().setNoteClass(ScheduleItem.class)
-                .setCategories(categories).setNameMatch(name);
-        List<NoteBase> orResult = main.findMatchingNotes(criteria);
-        assertEquals(3, orResult.size(), "Number of ScheduleItem notes with categories "
-                + categories + " and name '" + name + "'");
+                .setCategories(testCategories).setNameMatch(baseName);
+        runTestTransaction(session -> {
+            List<? extends NoteBase> orResult = findMatchingNotesInDB(session, criteria);
+            assertEquals(3, orResult.size(), "Number of ScheduleItem notes with categories "
+                    + testCategories + " and name '" + baseName + "'");
+        });
     }
 
     @Test
     public void getNotesByNamePatternClassAndCategory() {
-        createScheduleItemTestBed(main);
+        createScheduleItemTestBed();
         String pattern = "Event \\d";
-        Set<Category> categories = Set.of(Category.of("Category1"), Category.of("Category2"));
-        main.addNoteToCategories(categories, main.getNote(0));
-        main.addNoteToCategories(categories, main.getNote(1));
-        main.addNoteToCategory("Category1", main.getNote(2));
-        main.addNoteToCategory("Category2", main.getNote(3));
+        runTestTransaction(session -> {
+            ScheduleItem item6 = new ScheduleItem(baseName + " 6", null, "2020-07-07 09:00:00 PM");
+            item6.addCategories(testCategories);
+            persistObjectToDB(session, item6);
+            ScheduleItem item7 = new ScheduleItem(baseName + " 7", null, "2020-07-08 09:00:00 PM");
+            item7.addCategories(testCategories);
+            persistObjectToDB(session, item7);
+            ScheduleItem item8 = new ScheduleItem(baseName + " 8", null, "2020-07-09 09:00:00 PM");
+            item8.addCategory(Category.of("Category1"));
+            persistObjectToDB(session, item8);
+            ScheduleItem item9 = new ScheduleItem(baseName + " 9", null, "2020-07-10 09:00:00 PM");
+            item9.addCategory(Category.of("Category2"));
+            persistObjectToDB(session, item9);
+        });
         SearchCriteria criteria = new SearchCriteria().setNoteClass(ScheduleItem.class)
-                .setCategories(categories).joinWithAnd().setNameMatch(pattern).doPatternMatch();
-        List<NoteBase> andResult = main.findMatchingNotes(criteria);
-        assertEquals(2, andResult.size(), "Number of ScheduleItem notes with categories "
-                + categories + " and name matching pattern '" + pattern + "'");
+                .setCategories(testCategories).joinWithAnd().setNameMatch(pattern).doPatternMatch();
+        runTestTransaction(session -> {
+            List<? extends NoteBase> andResult = findMatchingNotesInDB(session, criteria);
+            assertEquals(2, andResult.size(), "Number of ScheduleItem notes with categories "
+                    + testCategories + " and name matching pattern '" + pattern + "'");
+        });
     }
 
     // @Test
     public void testTemplate() {
         throw new RuntimeException("Test not yet implemented");
     }
-
-    // ToDo: Add tests for various note types, categories, and child notes (need to set up test data)
-    //  * Search in sub-notes
 }

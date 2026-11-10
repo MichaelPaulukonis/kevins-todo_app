@@ -6,25 +6,20 @@ import org.hibernate.Transaction;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.junit.jupiter.api.*;
-import server.database.HibernateUtil;
-import server.note.NoteBase;
 
 import java.util.function.Consumer;
 
 import static server.NoteTestHelper.*;
-import static server.database.HibernateUtil.*;
 
 // ToDo: Rename this to DBTestBase?
 public class TestBase {
     private static StandardServiceRegistry testServiceRegistry;
     protected static NoteOrganizer main;
     protected static SessionFactory testSessionFactory;
-    protected static Session testSession;
     protected static final String defaultCategoryName = "NewCategory";
 
     @BeforeAll
     public static void setUpTestSessionFactory() {
-        // testServiceRegistry = getServiceRegistry(true);
         testSessionFactory = getTestSessionFactory();
     }
 
@@ -35,21 +30,11 @@ public class TestBase {
             throw new Exception("Failed to create Hibernate SessionFactory");
         }
         testSessionFactory.getSchemaManager().truncateMappedObjects();  // Clean up the DB before each test
-        testSession = testSessionFactory.openSession();
-        retrieveNotes(testSession);
-        // ToDo: Don't call beginTransaction() here?
-        testSession.beginTransaction();    // Used strictly for queries
-        // System.out.println("Number of notes should be 0 at the start of the test: " + retrieveNotes(testSession).size());
     }
 
     @AfterEach
     public void testCleanup() {
-        if (testSession != null && testSession.isOpen()) {
-            if (testSession.getTransaction().isActive()) {
-                testSession.getTransaction().rollback();   // Rollback transaction so test DB stays clean
-            }
-            testSession.close();
-        }
+        // ToDo: Do I need to clean up testSessionFactory here (currently done in @AfterAll)?
         resetNoteNumber();
     }
 
@@ -63,9 +48,9 @@ public class TestBase {
         }
     }
 
-    // ToDo: Figure out the production version later
-    // ToDo: Define getSessionFactory() and getTransaction() in NoteOrganizer?
-    //  - Have getSessionFactory() call getCurrentSession()
+    // ToDo: Add a version that returns an object (e.g. NoteBase) from the transaction?
+    // ToDo: Can I get rid of this and just use the TransactionManager class?
+    // ToDo: Add a static testTrxMgr property in this class?
     protected static void runTestTransaction(Consumer<Session> testCode) {
         Session testSession = testSessionFactory.getCurrentSession();
         Transaction trx = testSession.beginTransaction();
@@ -73,7 +58,7 @@ public class TestBase {
             testCode.accept(testSession);
             trx.commit();
         }
-        catch (Exception ex) {
+        catch (Throwable ex) {
             if (trx.isActive()) {
                 trx.rollback();
             }

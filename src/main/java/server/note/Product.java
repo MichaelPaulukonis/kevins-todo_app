@@ -1,6 +1,8 @@
 package server.note;
 
 import jakarta.persistence.*;
+import org.hibernate.search.engine.backend.types.ObjectStructure;
+import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexedEmbedded;
 import server.categories.Category;
 import server.categories.MediaType;
 import server.element.Price;
@@ -13,8 +15,8 @@ public class Product extends Note {
     @ManyToOne(cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     @JoinColumn(name = "owner_id")
     private Entity owner;
-    @ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
-    @JoinColumn(name = "category_id", nullable = true)
+    @Embedded
+    @IndexedEmbedded(structure = ObjectStructure.NESTED)
     private Category type;
     private Price productPrice;
 

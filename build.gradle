@@ -18,7 +18,9 @@ java {
 dependencies {
     implementation 'org.hibernate.javax.persistence:hibernate-jpa-2.1-api:1.0.2.Final'
     implementation 'org.hibernate.models:hibernate-models:1.0.1'
-    implementation 'org.hibernate.orm:hibernate-core:7.2.3.Final'
+    implementation 'org.hibernate.validator:hibernate-validator:9.1.6.Final'
+    implementation 'org.glassfish.expressly:expressly:6.0.0'  // Required for the Hibernate Validator
+    implementation 'org.hibernate.orm:hibernate-core:7.4.15.Final'
     implementation platform('org.hibernate.search:hibernate-search-bom:8.4.0.Final')
     implementation 'org.hibernate.search:hibernate-search-mapper-orm'
     // Note that for large-scale applications Gemini recommends Elasticsearch
