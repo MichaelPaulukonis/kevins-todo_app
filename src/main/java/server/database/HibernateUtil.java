@@ -1,6 +1,5 @@
 package server.database;
 
-import org.apache.lucene.search.Query;
 import org.hibernate.*;
 import org.hibernate.search.backend.lucene.LuceneExtension;
 import org.hibernate.search.mapper.orm.Search;
@@ -21,6 +20,22 @@ import static server.NoteUtils.*;
 public class HibernateUtil {
     protected static TransactionManager trxMgr;
 
+    public static SessionFactory getSessionFactory() { return getSessionFactory(false); }
+    public static SessionFactory getTestSessionFactory() { return getSessionFactory(true); }
+
+    private static SessionFactory getSessionFactory(boolean isTest) {
+        MetadataSources sources = new MetadataSources(getServiceRegistry(isTest));
+        // All @Entity classes must be included here (looks like I don't need to include @Embeddable classes)
+        for (Class<?> entity : new Class<?>[]{ NoteBase.class, Note.class, Entity.class, Contact.class,
+                Link.class, Product.class, ScheduleItem.class }) {
+            sources.addAnnotatedClass(entity);
+        }
+        Metadata metadata = sources.getMetadataBuilder().build();
+        SessionFactory factory = metadata.buildSessionFactory();
+        trxMgr = new TransactionManager(factory);
+        return factory;
+    }
+
     private static @NonNull StandardServiceRegistry getServiceRegistry(boolean isTestDB) {
         try {
             return new StandardServiceRegistryBuilder()
@@ -31,22 +46,6 @@ public class HibernateUtil {
             throw ex;
         }
     }
-
-    private static SessionFactory getSessionFactory(boolean isTest) {
-        MetadataSources sources = new MetadataSources(getServiceRegistry(isTest));
-        // All @Entity classes must be included here (looks like I don't need to include @Embeddable classes)
-        for (Class<?> entity : new Class<?>[]{ Category.class, NoteBase.class, Note.class, Entity.class, Contact.class,
-                Link.class, Product.class, ScheduleItem.class }) {
-            sources.addAnnotatedClass(entity);
-        }
-        Metadata metadata = sources.getMetadataBuilder().build();
-        SessionFactory factory = metadata.buildSessionFactory();
-        trxMgr = new TransactionManager(factory);
-        return factory;
-    }
-
-    public static SessionFactory getSessionFactory() { return getSessionFactory(false); }
-    public static SessionFactory getTestSessionFactory() { return getSessionFactory(true); }
 
     private static @NonNull Configuration getConfiguration(boolean isTestDB) {
         Configuration config = new Configuration();    // Looks for hibernate.properties by default
@@ -120,101 +119,37 @@ public class HibernateUtil {
         return false;
     }
 
-    // ToDo: Rename commitNoteAndAddCategories()?
     // The methods in this class persist the objects to the DB, and the TransactionManager handles commit/rollback.
     public static void commitNoteWithCategories(NoteBase note, Set<Category> categories) {
         trxMgr.runTransaction(session -> {
             if (!categories.isEmpty()) {
-                Set<Category> fetchedCategories = persistCategoriesIfNew(session, categories);
-                note.getCategories().addAll(fetchedCategories);
+                note.addCategories(categories);
             }
             session.persist(note);
         });
     }
 
-    public static Set<Category> persistCategoriesIfNew(Session session, Set<Category> categories) {
-        Set<Category> fetchedCategories = new HashSet<>();
-        for (Category category : categories) {
-            fetchedCategories.add(persistCategoryIfNew(session, category));
-        }
-        return fetchedCategories;
-    }
-
-    public static Category persistCategoryIfNew(Session session, Category cat) {
-        Category fetchedCat = retrieveCategoryFromDB(session, cat);
-        if (fetchedCat == null) {
-            session.persist(cat);
-            return cat;
-        }
-        return fetchedCat;
-       // ToDo: else log DEBUG message?
-    }
-
     public static Set<Category> retrieveCategoriesFromDB(Session session) {
-        return session.createQuery("SELECT c FROM Category c", Category.class).getResultStream()
-                .collect(Collectors.toSet());
+        return session.createQuery("SELECT DISTINCT c FROM NoteBase n JOIN n.categories c", Category.class)
+                .getResultStream().collect(Collectors.toSet());
     }
 
-    public static Category retrieveCategoryFromDB(Session session, Category cat) {
-        return session.createQuery("SELECT c FROM Category c WHERE c.categoryName = :categoryName", Category.class)
-                .setParameter("categoryName", cat.getName()).getResultStream().findFirst().orElse(null);
-    }
+    // ToDo: Rewrite categoryExists()
 
-    public static boolean categoryExists(Session session, Category cat) {
-        return retrieveCategoryFromDB(session, cat) != null;
-    }
-
-    public static boolean hasOpenTransaction(Session session) {
-        return session != null && session.getTransaction() != null && session.getTransaction().isActive();
-    }
-
-    // ToDo: Rename to persistObjectToDB()?
-    public static void saveObjectToDB(Session session, Object obj) {
+    public static void persistObjectToDB(Session session, Object obj) {
         session.persist(obj);
         session.flush();
     }
 
-    public static void persistNotesToDB(Session session, List<NoteBase> notes) {
-        notes.forEach(n -> persistNoteToDB(session, n));
-    }
-
-    public static void persistNoteToDB(Session session, NoteBase note) {
-        for (Category cat : note.getCategories()) {
-            persistCategoryIfNew(session, cat);
-        }
-        saveObjectToDB(session, note);
-    }
-
-    public static void commitObjectToDB(Session session, Object obj) {
-        try {
-            session.getTransaction().begin();
+    public static void commitObjectToDB(Object obj) {
+        trxMgr.runTransaction(session -> {
             session.persist(obj);
-            session.getTransaction().commit();
-        }
-        catch (Exception ex) {
-            // ToDo: Roll back transaction?
-            LOG.error("", ex);
-            throw ex;
-        }
-    }
-
-    // ToDo: Genericize this to commit Object instead?
-    public static <T extends NoteBase> void commitNoteToDB(Session session, T note) {
-        try {
-            session.getTransaction().begin();
-            session.persist(note);
-            session.getTransaction().commit();
-        }
-        catch (Exception ex) {
-            // ToDo: Roll back transaction?
-            LOG.error("", ex);
-            throw ex;
-        }
+        });
     }
 
     public static Set<NoteBase> retrieveNotesForCategory(Session session, Category cat) {
-        return session.createQuery("SELECT n FROM NoteBase n WHERE :category MEMBER OF n.categories", NoteBase.class)
-                .setParameter("category", cat).getResultStream().collect(Collectors.toSet());
+        return session.createQuery("SELECT N FROM NoteBase N JOIN N.categories c WHERE c.categoryName = :name", NoteBase.class)
+                .setParameter("name", cat.getName()).getResultStream().collect(Collectors.toSet());
     }
 
     public static List<? extends NoteBase> retrieveNotes(Session session) {
@@ -229,20 +164,18 @@ public class HibernateUtil {
 
     // ToDo: If I'm desperate I could just load the Notes from the DB and search in memory
     // ToDo: Can I use the NoteBase hasCategory(), hasAllCategories(), and hasAnyCategory() methods here?
-    // ToDo: Will getNoteClass() automatically include subclasses in the search result?
+    // ToDo: The name search is currently case-sensitive (make it case-insensitive?)
+    // Note: getNoteClass() automatically includes subclasses in the search result due to the SINGLE_TABLE model
     public static List<? extends NoteBase> findMatchingNotesInDB(Session session, SearchCriteria criteria) {
         // Extracted query variable for debugging and added .extension(LuceneExtension.get())
         var searchQuery = Search.session(session).search(criteria.getNoteClass()).extension(LuceneExtension.get()).where(
                 factory -> factory.bool().with(predicate -> {
             if (isSet(criteria.getNameMatch())) {
-                // I tried factoring out the duplicate code but it looks difficult/impossible
-                if (criteria.isPatternMatch()) {
-                    predicate.must(factory.regexp().field("name").matching(criteria.getNamePattern()));
-                }
-                else {
-                    predicate.must(factory.wildcard().field("name")
-                            .matching("*" + criteria.getNameMatch().toLowerCase() + "*"));
-                }
+                var namePredicate = criteria.isPatternMatch()
+                        ? factory.regexp().field("name").matching(criteria.getNamePattern())
+                        : factory.wildcard().field("name").matching("*" + criteria.getNameMatch() + "*");
+
+                predicate.must(namePredicate.toPredicate());
             }
             if (!criteria.getCategories().isEmpty()) {
                 if (criteria.isJoinWithAnd()) {
@@ -252,21 +185,24 @@ public class HibernateUtil {
                 }
                 else {
                     System.out.println("Criteria class = " + criteria.getNoteClass());
-                    List<String> categoryNames = criteria.getCategories().stream().map(Category::getName).toList();
                     predicate.must(factory.bool().with(outerBool -> {
                         for (Category cat : criteria.getCategories()) {
                             // 2. Spawn a separate ToParentBlockJoinQuery for EACH distinct category
                             // This means: "Find a note with a BOOK child" OR "Find a note with a FILM child"
-                            outerBool.should(factory.nested("categories").add(
-                                    factory.match().field("categories.categoryName").matching(cat.getName())
+                            outerBool.should(factory.nested("categories").add(factory.match()
+                                    .field("categories.categoryName").matching(cat.getName()).toPredicate()
                             ));
                         }
                         outerBool.minimumShouldMatchNumber(1);
                     }));
                 }
             }
+            // If name and categories aren't set this just uses class (which defaults to NoteBase)
+            if (!isSet(criteria.getNameMatch()) && criteria.getCategories().isEmpty()) {
+                predicate.must(factory.matchAll());
+            }
         })).toQuery();
-         System.out.println("=== GENERATED NATIVE LUCENE QUERY ===");
+        System.out.println("=== GENERATED NATIVE LUCENE QUERY ===");
         System.out.println(searchQuery.queryString());
         System.out.println("=====================================");
         return searchQuery.fetchAllHits();

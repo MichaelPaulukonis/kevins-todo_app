@@ -33,16 +33,13 @@ public class NoteBase {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "parent_note_id")
     private Note parent;
-    // ToDo: Annotate this with @KeywordField for pattern or contains() searches?
-    //  - Per Gemini @FullTextField enables case-insensitivity by default
+    @KeywordField
     protected String name;
     protected String description;
     // ToDo: Should a child Note inherit its parent's categories (maybe conceptually but not literally)?
-    @ManyToMany(fetch = FetchType.LAZY)
-    @JoinTable(name = "note_categories", joinColumns = @JoinColumn(name = "note_id"),
-            inverseJoinColumns = @JoinColumn(name = "category_id"))
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "categories", joinColumns = @JoinColumn(name = "note_id"))
     @IndexedEmbedded(structure = ObjectStructure.NESTED)
-    @IndexingDependency(reindexOnUpdate = ReindexOnUpdate.SHALLOW)
     protected Set<Category> categories = new HashSet<>();
     private final LocalDateTime created = LocalDateTime.now();
     private Boolean completed = false;
@@ -82,12 +79,8 @@ public class NoteBase {
     public NoteBase addCategory(Category cat) { categories.add(cat); return this; }
     public NoteBase addCategory(String cat) { categories.add(Category.of(cat)); return this; }
     public NoteBase addCategory(InternalCategory cat) { categories.add(Category.of(cat)); return this; }
+    public NoteBase addCategories(Set<Category> cats) { categories.addAll(cats); return this; }
     public NoteBase removeCategory(String cat) { categories.remove(Category.of(cat)); return this; }
-    public NoteBase addCategories(Set<String> cats) {
-        categories.addAll(cats.stream().map(Category::of).collect(Collectors.toSet()));
-
-        return this;
-    }
     public LocalDateTime getDateCreated() { return created; }
     public boolean getCompleted() { return completed != null && completed; }
     public NoteBase setCompleted(boolean isCompleted) { completed = isCompleted; return this; }
@@ -99,7 +92,7 @@ public class NoteBase {
         return cats == null || cats.isEmpty() || cats.stream().anyMatch(cat -> categories.contains(cat));
     }
 
-    // 'equals()' should check the class of its parameter
+    @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
     @Override
     public boolean equals(Object obj) { return equalsHelper(this, obj); }
 

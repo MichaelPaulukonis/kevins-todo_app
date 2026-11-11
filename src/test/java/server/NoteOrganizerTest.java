@@ -51,6 +51,7 @@ public class NoteOrganizerTest extends TestBase {
     }
 
     @Test
+    // ToDo: Test Note ordering in DB (based on ID, timestamp)?
     public void mostRecentScheduleItemIsAddedAtFront() {
         createScheduleItemTestBed(main);
         ScheduleItem newItem = new ScheduleItem("Most Recent Event", null, LocalDateTime.MAX);
@@ -59,6 +60,7 @@ public class NoteOrganizerTest extends TestBase {
         assertSame(newItem, main.getSchedule().getFirst(), "Most recent schedule item is at the front");
     }
 
+    // ToDo: I thought we had a DB version of the test for ScheduleItem ordering, but I can't find it
     @Test
     public void leastRecentScheduleItemIsAddedAtEnd() {
         createScheduleItemTestBed(main);
@@ -69,6 +71,7 @@ public class NoteOrganizerTest extends TestBase {
     }
 
     @Test
+    // ToDo: Need some provision for returning data for a schedule view from the DB
     public void callGetScheduleWithNoScheduleItemsAdded() {
         assertEquals(0, main.getSchedule().size(), "Number of schedule items");
     }
@@ -90,6 +93,7 @@ public class NoteOrganizerTest extends TestBase {
 
     @Test
     // Remove the only note in the list
+    // ToDo: Add DB versions of remove tests in DBSanityTest
     public void removeOnlyNote() {
         NoteBase newNote = NoteTestHelper.createGenericTestNote();
         main.addNote(newNote);
@@ -179,6 +183,7 @@ public class NoteOrganizerTest extends TestBase {
     }
 
     @Test
+    // ToDo: Convert to DB test (also have negative tests for weird category names)
     public void addCategoryWithSpaceInName() {
         String categoryName = "Category name with spaces";
         main.addCategory(categoryName);
@@ -199,12 +204,14 @@ public class NoteOrganizerTest extends TestBase {
 
     static final String invalidCategory = "invalidCategory";
     @Test
+    // ToDo: Convert to DB test
     public void tryGettingInvalidCategory() {
         Set<NoteBase> notes = main.getNotesForCategory(invalidCategory);
         assertEquals(0, notes.size(), "Number of notes in category " + invalidCategory);
      }
 
     @Test
+    // ToDo: Convert to DB test
     public void tryRemovingInvalidCategory() {
         Exception ex = assertThrows(RuntimeException.class, () -> main.deleteCategory(invalidCategory));
         String expectedMessage = "Unable to locate category '" + invalidCategory + "'";

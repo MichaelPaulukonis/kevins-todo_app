@@ -1,5 +1,6 @@
 package server;
 
+import org.hibernate.Session;
 import org.junit.jupiter.api.*;
 import server.element.*;
 import server.note.*;
@@ -14,27 +15,28 @@ import static org.junit.jupiter.api.Assertions.*;
  * Note that you may have to try running this command more than once
  */
 // ToDo: Move into server.database package?
+// ToDo: Add test for a 3-level note (i.e. a note with a child note that has a child)
+// ToDo: Add tests for notes with one or more categories
 // ToDo: Add Contact test with multiple Addresses, Phones, and, Emails (and assertEquals() on full lists)
 // ToDo: Add DB configuration tests (combinations of config files and environment variables)
 //  - Test non-existent config file
-// ToDo: Add deletion tests
+// ToDo: Try adding a duplicate category (looks like it's currently allowed)
 // ToDo: Test deleting one child note from a list of multiple
 // ToDo: Test cascading deletes (deleting parent entity also deletes children)
 // ToDo: Add tests for CRUD operations on each entity type (Note, Contact, MediaItem, etc.)
-// ToDo: Add tests for complex queries
-// ToDo: Add commit tests (using separate sessions for create and retrieve) - Put them in a separate class?
+// ToDo: Add deletion tests
 // ToDo: Come up with some negative tests (null Note, etc.)
-// ToDo: Add tests for verifying managed entities (dbSession.getManagedEntities())
-//       Verify there is at least one managed entity?
 public class DBSanityTest extends TestBase {
 
     @Test
     public void testDBConnection() {
         // This is a basic session sanity test
-        assertTrue(testSession.isOpen(), "Test session in open");
-        assertFalse(testSession.getProperties().isEmpty(), "Expected non-empty properties for open DB session");
-        testSession.close();
-        assertFalse(testSession.isOpen(), "Test session in open");
+        try (Session testSession = testSessionFactory.openSession()) {
+            assertTrue(testSession.isOpen(), "Test session is open");
+            assertFalse(testSession.getProperties().isEmpty(), "Expected non-empty properties for open DB session");
+        } catch (Exception e) {
+            fail("Failed to open DB session: " + e.getMessage());
+        }
     }
 
     @Test
@@ -72,20 +74,24 @@ public class DBSanityTest extends TestBase {
         newNote.addChildNote(getTestNote());
         newNote.addChildNote(getTestPerson());
         newNote.addChildNote(getTestBusiness());
-        // ToDo: This test is failing because the Category in Product is transient (not persisted)
-        // newNote.addChildNote(getTestProduct());
+        newNote.addChildNote(getTestProduct());
         newNote.addChildNote(getTestArtist());
         newNote.addChildNote(getGoogleLink());
         newNote.addChildNote(getTestScheduleItem());
         List<? extends NoteBase> children = commitAndRetrieveNote(newNote).getChildNotes();
         // ToDo: Do a direct List compare here?
         assertEquals(newNote.getChildNotes().size(), children.size(), "Number of child notes");
-        // ToDO: Uncomment Product.class here once the transient Category issue is resolved
         List<Class<? extends NoteBase>> childTypes = List.of(NoteBase.class, Note.class, Contact.class,
-                Contact.class, /* Product.class, */ Entity.class, Link.class, ScheduleItem.class);
+                Contact.class, Product.class, Entity.class, Link.class, ScheduleItem.class);
         for (int i = 0; i < childTypes.size(); i++) {
             assertEquals(childTypes.get(i), children.get(i).getClass(), "Type for child #" + (i + 1));
         }
+    }
+
+    @Test
+    @Disabled("Need to implement")
+    public void createNoteWithCategory() {
+
     }
 
     @Test
@@ -109,7 +115,6 @@ public class DBSanityTest extends TestBase {
     @Test
     public void createContact() {
         Contact person = Contact.newPerson("Person1", "LastName1");
-        // Contact fetchedNote = saveAndRetrieveNote(testSession, person);
         Contact fetchedNote = commitAndRetrieveNote(person);
         assertEquals(person.getName(), fetchedNote.getName(), "Person name");
     }
@@ -128,7 +133,6 @@ public class DBSanityTest extends TestBase {
 
     @Test
     public void createProduct() {
-        // ToDo: This is currently failing with the transient Category issue
         Product newProduct = getTestProduct();
         Product fetchedNote = commitAndRetrieveNote(newProduct);
         assertEquals(newProduct.getType(), fetchedNote.getType(), "Product category");
