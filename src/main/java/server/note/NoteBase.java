@@ -37,9 +37,9 @@ public class NoteBase {
     protected String name;
     protected String description;
     // ToDo: Should a child Note inherit its parent's categories (maybe conceptually but not literally)?
-    @ElementCollection(fetch = FetchType.LAZY)
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "categories", joinColumns = @JoinColumn(name = "note_id"))
-    @IndexedEmbedded(structure = ObjectStructure.NESTED)
+    @IndexedEmbedded(structure = ObjectStructure.FLATTENED)
     protected Set<Category> categories = new HashSet<>();
     private final LocalDateTime created = LocalDateTime.now();
     private Boolean completed = false;
@@ -87,8 +87,8 @@ public class NoteBase {
 
     public boolean hasCategory(String category) { return categories.contains(category); }
     // ToDo: Need Javadoc (e.g. no categories automatically returns true)
-    public boolean hasAllCategories(Set<String> cats) { return cats == null || categories.containsAll(cats); }
-    public boolean hasAnyCategory(Set<String> cats) {
+    public boolean hasAllCategories(Set<Category> cats) { return cats == null || categories.containsAll(cats); }
+    public boolean hasAnyCategory(Set<Category> cats) {
         return cats == null || cats.isEmpty() || cats.stream().anyMatch(cat -> categories.contains(cat));
     }
 

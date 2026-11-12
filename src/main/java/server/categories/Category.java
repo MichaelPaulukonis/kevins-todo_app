@@ -44,7 +44,8 @@ public class Category {
     }
 
     // A clean helper to check if this category matches an internal enum type
-    // ToDo: Change name to validInternalCategory()
+    // ToDo: Change name to validInternalCategory()? Or maybe should be isInternalCategory()?
+    //  - What was the intended use case for this? Should we just use equals() instead?
     public boolean validCategory(Enum<?> internalType) {
         return internalType != null && internalType.name().equalsIgnoreCase(this.categoryName);
     }

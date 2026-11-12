@@ -2,6 +2,7 @@ package server.database;
 
 import org.hibernate.*;
 import org.hibernate.search.backend.lucene.LuceneExtension;
+import org.hibernate.search.engine.search.predicate.SearchPredicate;
 import org.hibernate.search.mapper.orm.Search;
 import org.jspecify.annotations.NonNull;
 import server.SearchCriteria;
@@ -61,6 +62,7 @@ public class HibernateUtil {
         if (isTestDB) {
             // ToDo: Confirm we are NOT pointing at the production DB here!
             // Create and drop the DB for each test run
+            config.setProperty("hibernate.enable_lazy_load_no_trans", "true");
             config.setProperty("hibernate.hbm2ddl.auto", "create-drop");
             // Cache the Lucene search results in memory instead of on disk
             // ToDo: Might not need this
@@ -129,9 +131,11 @@ public class HibernateUtil {
         });
     }
 
-    public static Set<Category> retrieveCategoriesFromDB(Session session) {
-        return session.createQuery("SELECT DISTINCT c FROM NoteBase n JOIN n.categories c", Category.class)
-                .getResultStream().collect(Collectors.toSet());
+    public static Set<Category> retrieveCategoriesFromDB() {
+        return trxMgr.runTransaction(session -> {
+            return session.createQuery("SELECT DISTINCT c FROM NoteBase n JOIN n.categories c", Category.class)
+                    .getResultStream().collect(Collectors.toSet());
+        });
     }
 
     // ToDo: Rewrite categoryExists()
@@ -142,70 +146,83 @@ public class HibernateUtil {
     }
 
     public static void commitObjectToDB(Object obj) {
-        trxMgr.runTransaction(session -> {
-            session.persist(obj);
+        trxMgr.runTransaction(session -> { session.persist(obj); });
+    }
+
+    public static Set<NoteBase> retrieveNotesForCategory(Category cat) {
+        return trxMgr.runTransaction(session -> {
+            return session.createQuery("SELECT N FROM NoteBase N JOIN N.categories c WHERE c.categoryName = :name", NoteBase.class)
+                    .setParameter("name", cat.getName()).getResultStream().collect(Collectors.toSet());
         });
     }
 
-    public static Set<NoteBase> retrieveNotesForCategory(Session session, Category cat) {
-        return session.createQuery("SELECT N FROM NoteBase N JOIN N.categories c WHERE c.categoryName = :name", NoteBase.class)
-                .setParameter("name", cat.getName()).getResultStream().collect(Collectors.toSet());
+    public static List<? extends NoteBase> retrieveNotes() {
+        return trxMgr.runTransaction(session -> {
+            return session.createQuery("SELECT n FROM NoteBase n", NoteBase.class).getResultList();
+        });
     }
 
-    public static List<? extends NoteBase> retrieveNotes(Session session) {
-        return session.createQuery("SELECT n FROM NoteBase n", NoteBase.class).getResultList();
+    // ToDo: Must give runTransaction() methods different names to avoid the two return calls
+    public static <T extends NoteBase> T retrieveNoteFromDB(T note) {
+        return trxMgr.runTransaction(session -> {
+            return session.find(Hibernate.getClass(note), note.getId());
+        });
     }
 
-    @SuppressWarnings("unchecked")
-    public static <T extends NoteBase> T retrieveNoteFromDB(Session session, T note) {
-        Class <T> noteClass = (Class<T>) Hibernate.getClass(note);
-        return session.find(noteClass, note.getId());
+/*
+    // This is cleaner than the direct DB search but, according to Gemini, much slower and more error-prone
+    // (although it did pass all the search tests)
+    public static List<? extends NoteBase> findMatchingNotesInDB(SearchCriteria criteria) {
+        List<NoteBase> result = new ArrayList<>();
+        trxMgr.runTransaction(session -> {
+            // LOG.info("Found {} matching notes in DB for criteria: {}", result.size(), criteria);
+            var classMatch = Search.session(session).search(criteria.getNoteClass())
+                    .where(TypedSearchPredicateFactory::matchAll).fetchAllHits();
+            result.addAll(classMatch.stream().filter(criteria::match).collect(Collectors.toSet()));
+        });
+        return result;
     }
+*/
 
     // ToDo: If I'm desperate I could just load the Notes from the DB and search in memory
     // ToDo: Can I use the NoteBase hasCategory(), hasAllCategories(), and hasAnyCategory() methods here?
     // ToDo: The name search is currently case-sensitive (make it case-insensitive?)
     // Note: getNoteClass() automatically includes subclasses in the search result due to the SINGLE_TABLE model
-    public static List<? extends NoteBase> findMatchingNotesInDB(Session session, SearchCriteria criteria) {
+    public static List<? extends NoteBase> findMatchingNotesInDB(SearchCriteria criteria) {
         // Extracted query variable for debugging and added .extension(LuceneExtension.get())
-        var searchQuery = Search.session(session).search(criteria.getNoteClass()).extension(LuceneExtension.get()).where(
-                factory -> factory.bool().with(predicate -> {
-            if (isSet(criteria.getNameMatch())) {
-                var namePredicate = criteria.isPatternMatch()
-                        ? factory.regexp().field("name").matching(criteria.getNamePattern())
-                        : factory.wildcard().field("name").matching("*" + criteria.getNameMatch() + "*");
+        // System.out.println("Criteria class = " + criteria.getNoteClass());
+        return trxMgr.runTransaction(session -> {
+            var searchQuery = Search.session(session).search(criteria.getNoteClass()).extension(LuceneExtension.get()).where(
+                    factory -> factory.bool().with(predicate -> {
+                if (isSet(criteria.getNameMatch())) {
+                    var namePredicate = criteria.isPatternMatch()
+                            ? factory.regexp().field("name").matching(criteria.getNamePattern())
+                            : factory.wildcard().field("name").matching("*" + criteria.getNameMatch() + "*");
 
-                predicate.must(namePredicate.toPredicate());
-            }
-            if (!criteria.getCategories().isEmpty()) {
-                if (criteria.isJoinWithAnd()) {
-                    for (Category cat : criteria.getCategories()) {
-                        predicate.must(factory.match().field("categories.categoryName").matching(cat.getName()));
+                    predicate.must(namePredicate.toPredicate());
+                }
+                if (criteria.hasCategories()) {
+                    List<SearchPredicate> categoryPredicates = criteria.getCategories().stream().map(cat -> factory.match()
+                            .field("categories.categoryName").matching(cat.getName()).toPredicate()).toList();
+                    if (criteria.isJoinWithAnd()) {
+                        categoryPredicates.forEach(predicate::must);
+                    } else {
+                        predicate.must(factory.bool().with(b -> {
+                            categoryPredicates.forEach(b::should);
+                            b.minimumShouldMatchNumber(1);
+                        }));
                     }
                 }
-                else {
-                    System.out.println("Criteria class = " + criteria.getNoteClass());
-                    predicate.must(factory.bool().with(outerBool -> {
-                        for (Category cat : criteria.getCategories()) {
-                            // 2. Spawn a separate ToParentBlockJoinQuery for EACH distinct category
-                            // This means: "Find a note with a BOOK child" OR "Find a note with a FILM child"
-                            outerBool.should(factory.nested("categories").add(factory.match()
-                                    .field("categories.categoryName").matching(cat.getName()).toPredicate()
-                            ));
-                        }
-                        outerBool.minimumShouldMatchNumber(1);
-                    }));
+                // If name and categories aren't set just match all class hits (defaulting to NoteBase)
+                if (!isSet(criteria.getNameMatch()) && criteria.getCategories().isEmpty()) {
+                    predicate.must(factory.matchAll());
                 }
-            }
-            // If name and categories aren't set this just uses class (which defaults to NoteBase)
-            if (!isSet(criteria.getNameMatch()) && criteria.getCategories().isEmpty()) {
-                predicate.must(factory.matchAll());
-            }
-        })).toQuery();
-        System.out.println("=== GENERATED NATIVE LUCENE QUERY ===");
-        System.out.println(searchQuery.queryString());
-        System.out.println("=====================================");
-        return searchQuery.fetchAllHits();
+            })).toQuery();
+            System.out.println("=== GENERATED NATIVE LUCENE QUERY ===");
+            System.out.println(searchQuery.queryString());
+            System.out.println("=====================================");
+            return new ArrayList<>(searchQuery.fetchAllHits());
+        });
     }
 
     // Helper class for overriding equals (required by Hibernate)

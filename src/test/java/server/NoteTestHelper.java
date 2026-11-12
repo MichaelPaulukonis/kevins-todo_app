@@ -104,18 +104,6 @@ public class NoteTestHelper extends HibernateUtil {
         return testNote;
     }
 
-    protected static List<NoteBase> commitNewTestNotes(int noteCount) {
-        List<NoteBase> newNotes = new ArrayList<>(noteCount);
-        trxMgr.runTransaction(testSession -> {
-            List<? extends NoteBase> notes = createTestNotes(noteCount);
-            for (NoteBase note : notes) {
-                persistObjectToDB(testSession, note);
-                newNotes.add(retrieveNoteFromDB(testSession, note));
-            }
-        });
-        return newNotes;
-    }
-
     protected static List<NoteBase> persistNewTestNotes(int noteCount, NoteOrganizer main) {
         List<NoteBase> newNotes = new ArrayList<>(noteCount);
         // ToDo: Use index in note name?
@@ -238,13 +226,19 @@ public class NoteTestHelper extends HibernateUtil {
         return new ScheduleItem("Event#" + eventNumber, null, LocalDateTime.now().plusDays(eventNumber++));
     }
 
-    public static <T extends NoteBase> T commitAndRetrieveNote(T note) {
-        AtomicReference<T> fetchedNote = new AtomicReference<>();
-        trxMgr.runTransaction(testSession -> {
-            persistObjectToDB(testSession, note);
-            fetchedNote.set(retrieveNoteFromDB(testSession, note));
-        });
-        assert fetchedNote.get() != null : "Failed to fetch " + note.getClass() + " with ID " + note.getId();
-        return fetchedNote.get();
+    protected static List<NoteBase> commitAndRetrieveTestNotes(int noteCount) {
+        List<NoteBase> newNotes = new ArrayList<>(noteCount);
+        List<? extends NoteBase> notes = createTestNotes(noteCount);
+        for (NoteBase note : notes) {
+            newNotes.add(commitAndRetrieveTestNote(note));
+        }
+        return newNotes;
+    }
+
+    public static <T extends NoteBase> T commitAndRetrieveTestNote(T note) {
+        commitObjectToDB(note);
+        T fetchedNote = retrieveNoteFromDB(note);
+        assert fetchedNote != null : "Failed to fetch " + note.getClass() + " with ID " + note.getId();
+        return fetchedNote;
     }
 }

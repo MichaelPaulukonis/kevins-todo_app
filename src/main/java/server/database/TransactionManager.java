@@ -14,18 +14,25 @@ public class TransactionManager {
         this.sessionFactory = sessionFactory;
     }
 
-    // ToDo: This is the signature for returning an object: public <T> T runTransaction(Function<Session, T> action)
     public void runTransaction(Consumer<Session> dbTransactionCode) {
+        runTransaction(session -> {
+            dbTransactionCode.accept(session);
+            return null;
+        });
+    }
+
+    public <T> T runTransaction(Function<Session, T> dbTransactionCode) {
         Session session = sessionFactory.getCurrentSession();
         Transaction tx = session.beginTransaction();
         try {
-            dbTransactionCode.accept(session);
+            T result = dbTransactionCode.apply(session);
             tx.commit();
-        } catch (Exception e) {
+            return result;
+        } catch (Throwable th) {
             if (tx.isActive()) {
                 tx.rollback();
             }
-            throw e;
+            throw th;
         }
     }
 }

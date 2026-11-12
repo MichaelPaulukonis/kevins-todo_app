@@ -37,9 +37,9 @@ public class SearchCriteria {
         return this;
     }
     public SearchCriteria setJoinWithAnd(boolean joinWithAnd) { this.joinWithAnd = joinWithAnd; return this; }
-    public SearchCriteria joinWithAnd() { this.joinWithAnd = true; return this; }
+    public SearchCriteria joinWithAnd() { return setJoinWithAnd(true); }
     public SearchCriteria setDoPatternMatch(boolean patternMatch) { this.doPatternMatch = patternMatch; return this; }
-    public SearchCriteria doPatternMatch() { this.doPatternMatch = true; return this; }
+    public SearchCriteria doPatternMatch() { return setDoPatternMatch(true); }
 
     public String getNameMatch() { return nameMatch; }
     public String getNamePattern() { return matchPattern.pattern(); }
@@ -47,14 +47,16 @@ public class SearchCriteria {
     public boolean isJoinWithAnd() { return joinWithAnd; }
     public Class<? extends NoteBase> getNoteClass() { return noteClass; }
     public Set<Category> getCategories() { return categories; }
-    boolean hasCategories() { return !categories.isEmpty(); }
+    public boolean hasCategories() { return !categories.isEmpty(); }
     boolean nameMatch(String name) { return (doPatternMatch && matchPattern.matcher(name).matches())
             || (!doPatternMatch && name.toLowerCase().contains(nameMatch.toLowerCase())); }
 
+    // In this version the DB would do the class matching
     public boolean match(NoteBase note) {
         boolean nameMatches = nameMatch == null || nameMatch(note.getName());
-        boolean classMatch = noteClass == null || noteClass.isAssignableFrom(note.getClass());
-        // boolean categoryMatch = joinWithAnd ? note.hasAllCategories(categories) : note.hasAnyCategory(categories);
-        return nameMatches && classMatch; //  && categoryMatch;
+        // boolean classMatch = noteClass == null || noteClass.isAssignableFrom(note.getClass());
+        boolean categoryMatch = joinWithAnd ? note.hasAllCategories(categories) : note.hasAnyCategory(categories);
+        // return nameMatches && classMatch; //  && categoryMatch;
+        return nameMatches && categoryMatch;
     }
 }

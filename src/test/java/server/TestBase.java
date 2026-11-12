@@ -1,17 +1,14 @@
 package server;
 
-import org.hibernate.Session;
 import org.hibernate.SessionFactory;
-import org.hibernate.Transaction;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.junit.jupiter.api.*;
 
-import java.util.function.Consumer;
-
 import static server.NoteTestHelper.*;
 
 // ToDo: Rename this to DBTestBase?
+// ToDo: Add a static testTrxMgr property in this class (don't need it since it's available in NoteTestHleper)?
 public class TestBase {
     private static StandardServiceRegistry testServiceRegistry;
     protected static NoteOrganizer main;
@@ -45,24 +42,6 @@ public class TestBase {
         }
         if (testServiceRegistry != null) {
             StandardServiceRegistryBuilder.destroy(testServiceRegistry);
-        }
-    }
-
-    // ToDo: Add a version that returns an object (e.g. NoteBase) from the transaction?
-    // ToDo: Can I get rid of this and just use the TransactionManager class?
-    // ToDo: Add a static testTrxMgr property in this class?
-    protected static void runTestTransaction(Consumer<Session> testCode) {
-        Session testSession = testSessionFactory.getCurrentSession();
-        Transaction trx = testSession.beginTransaction();
-        try {
-            testCode.accept(testSession);
-            trx.commit();
-        }
-        catch (Throwable ex) {
-            if (trx.isActive()) {
-                trx.rollback();
-            }
-            throw ex;
         }
     }
 }

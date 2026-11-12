@@ -144,7 +144,7 @@ public class NoteOrganizer {
         if (!categories.get(name).isEmpty()) {
             LOG.warn("Deleting category '{}' will remove it from all notes", name);
         }
-        categories.get(name).forEach(n -> n.getCategories().remove(name));
+        categories.get(name).forEach(n -> n.removeCategory(name));
         categories.remove(name);
     }
 

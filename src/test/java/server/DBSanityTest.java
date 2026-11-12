@@ -42,7 +42,7 @@ public class DBSanityTest extends TestBase {
     @Test
     public void createSimpleNote() {
         NoteBase simpleNote = getSimpleNote();
-        NoteBase fetchedNote = commitAndRetrieveNote(simpleNote);
+        NoteBase fetchedNote = commitAndRetrieveTestNote(simpleNote);
         assertEquals(simpleNote.getName(), fetchedNote.getName(), "Simple Note name");
     }
 
@@ -50,7 +50,7 @@ public class DBSanityTest extends TestBase {
     public void createNote() {
         String noteName = "New Note 1";
         Note newNote = new Note(noteName, "Testing Note creation");;
-        Note fetchedNote = commitAndRetrieveNote(newNote);
+        Note fetchedNote = commitAndRetrieveTestNote(newNote);
         assertEquals(newNote.getName(), fetchedNote.getName(), "New Note name");
     }
 
@@ -60,7 +60,7 @@ public class DBSanityTest extends TestBase {
         Note newNote = new Note("NewNote2", "Testing adding a child note");
         Note childNote = new Note("ChildNote1", "Testing adding a child note");
         newNote.addChildNote(childNote);
-        Note fetchedNote = commitAndRetrieveNote(newNote);
+        Note fetchedNote = commitAndRetrieveTestNote(newNote);
         assertEquals(newNote.getName(), fetchedNote.getName());
         assertEquals(1, fetchedNote.getChildNotes().size(), "Number of child notes");
         // ToDo: Verify child note name as well?
@@ -78,7 +78,7 @@ public class DBSanityTest extends TestBase {
         newNote.addChildNote(getTestArtist());
         newNote.addChildNote(getGoogleLink());
         newNote.addChildNote(getTestScheduleItem());
-        List<? extends NoteBase> children = commitAndRetrieveNote(newNote).getChildNotes();
+        List<? extends NoteBase> children = commitAndRetrieveTestNote(newNote).getChildNotes();
         // ToDo: Do a direct List compare here?
         assertEquals(newNote.getChildNotes().size(), children.size(), "Number of child notes");
         List<Class<? extends NoteBase>> childTypes = List.of(NoteBase.class, Note.class, Contact.class,
@@ -99,7 +99,7 @@ public class DBSanityTest extends TestBase {
         Note newNote = new Note("NewNote3", "Testing adding a link to a note");
         Link newLink = getGoogleLink();
         newNote.addLink(newLink);
-        Note fetchedNote = commitAndRetrieveNote(newNote);
+        Note fetchedNote = commitAndRetrieveTestNote(newNote);
         assertEquals(1, fetchedNote.getLinks().size(), "Number of Note links");
         assertEquals(newLink.getUrl(), fetchedNote.getLink(0).getUrl(), "Link added to Note");
     }
@@ -107,7 +107,7 @@ public class DBSanityTest extends TestBase {
     @Test
     public void createEntity() {
         Entity newEntity = getTestArtist();
-        Entity fetchedNote = commitAndRetrieveNote(newEntity);
+        Entity fetchedNote = commitAndRetrieveTestNote(newEntity);
         assertEquals(newEntity.getType(), fetchedNote.getType(), "Entity type");
         assertEquals(newEntity.getName(), fetchedNote.getName(), "Artist name");
     }
@@ -115,7 +115,7 @@ public class DBSanityTest extends TestBase {
     @Test
     public void createContact() {
         Contact person = Contact.newPerson("Person1", "LastName1");
-        Contact fetchedNote = commitAndRetrieveNote(person);
+        Contact fetchedNote = commitAndRetrieveTestNote(person);
         assertEquals(person.getName(), fetchedNote.getName(), "Person name");
     }
 
@@ -125,7 +125,7 @@ public class DBSanityTest extends TestBase {
         person.addAddress(new Address().setAddress1("123 4th St.").setCity("Menlo Park"));
         person.addPhoneNumber("775-3433", Phone.PhoneType.HOME);
         person.addEmail("user1@gmail.com", Email.EmailType.PERSONAL);
-        Contact fetchedNote = commitAndRetrieveNote(person);
+        Contact fetchedNote = commitAndRetrieveTestNote(person);
         assertEquals(1, fetchedNote.getAddresses().size(), "Number of addresses");
         assertEquals(1, fetchedNote.getPhoneNumbers().size(), "Number of Phone numbers");
         assertEquals(1, fetchedNote.getEmails().size(), "Number of Emails");
@@ -134,7 +134,7 @@ public class DBSanityTest extends TestBase {
     @Test
     public void createProduct() {
         Product newProduct = getTestProduct();
-        Product fetchedNote = commitAndRetrieveNote(newProduct);
+        Product fetchedNote = commitAndRetrieveTestNote(newProduct);
         assertEquals(newProduct.getType(), fetchedNote.getType(), "Product category");
         assertEquals(newProduct.getOwner().getName(), fetchedNote.getOwner().getName(), "Owner name");
         assertEquals(newProduct.getPrice(), fetchedNote.getPrice(), "Product price");
@@ -143,14 +143,14 @@ public class DBSanityTest extends TestBase {
     @Test
     public void createLink() {
         Link newLink = getGoogleLink();
-        Link fetchedNote = commitAndRetrieveNote(newLink);
+        Link fetchedNote = commitAndRetrieveTestNote(newLink);
         assertEquals(newLink.getUrl(), fetchedNote.getUrl(), "Link URL");
     }
 
     @Test
     public void createScheduleItem() {
         ScheduleItem event = new ScheduleItem("Deadline", null, ScheduleItem.convertToDate("2020-06-12 00:00:00 AM"));
-        ScheduleItem fetchedNote = commitAndRetrieveNote(event);
+        ScheduleItem fetchedNote = commitAndRetrieveTestNote(event);
         assertEquals(event.getDate(), fetchedNote.getDate(), "Event date");
     }
 }
