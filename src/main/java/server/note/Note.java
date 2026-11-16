@@ -15,7 +15,7 @@ import java.util.List;
 public class Note extends NoteBase {
     // Maps the relationship using the 'parent' field declared in NoteBase
     @OrderColumn    // ToDo: Recommends using @OrderBy instead
-    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     protected List<NoteBase> childNotes = new ArrayList<>();    // ToDo: Rename "children"?
     @OrderColumn
     @OneToMany(cascade = {CascadeType.PERSIST, CascadeType.MERGE})

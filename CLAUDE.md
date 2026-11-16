@@ -11,8 +11,8 @@ Java/Gradle backend for a note-taking / to-do app ("Kevin's Todo App", Gradle pr
 ```bash
 ./gradlew build          # compile + test
 ./gradlew test           # run all tests (JUnit 5 / Jupiter)
-./gradlew test --tests server.NoteOrganizerTest   # run a single test class
-./gradlew test --tests "server.NoteOrganizerTest.someMethodName"  # single test method
+./gradlew test --tests server.DBSanityTest   # run a single test class
+./gradlew test --tests "server.DBSanityTest.someMethodName"  # single test method
 ```
 
 Java 21 (Gradle toolchain in `build.gradle`; tests use Java 21 APIs like `List.getFirst()`). Use `./gradlew` (Gradle 8.14, pinned by the committed wrapper) - don't install a global Gradle, it won't match. The foojay resolver in `settings.gradle` downloads the Java 21 toolchain if it isn't installed.

@@ -218,6 +218,7 @@ public class SearchTest extends TestBase {
         commitNoteWithCategories(item7, Set.of(Category.of("Category1")));
         ScheduleItem item8 = new ScheduleItem(baseName + " 8", null, "2020-07-09 09:00:00 PM");
         commitNoteWithCategories(item8, Set.of(Category.of("Category2")));
+        // This does an OR match on categories by default
         SearchCriteria criteria = new SearchCriteria().setNoteClass(ScheduleItem.class)
                 .setCategories(testCategories).setNameMatch(baseName);
         assertEquals(3, findMatchingNotesInDB(criteria).size(), "Number of ScheduleItem notes with categories "
@@ -236,6 +237,7 @@ public class SearchTest extends TestBase {
         commitNoteWithCategories(item8, Set.of(Category.of("Category1")));
         ScheduleItem item9 = new ScheduleItem(baseName + " 9", null, "2020-07-10 09:00:00 PM");
         commitNoteWithCategories(item9, Set.of(Category.of("Category2")));
+        // This does an OR match on categories by default
         SearchCriteria criteria = new SearchCriteria().setNoteClass(ScheduleItem.class)
                 .setCategories(testCategories).joinWithAnd().setNameMatch(pattern).doPatternMatch();
         assertEquals(2, findMatchingNotesInDB(criteria).size(), "Number of ScheduleItem notes with categories "

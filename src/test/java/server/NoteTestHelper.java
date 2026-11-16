@@ -9,7 +9,6 @@ import server.note.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static server.note.Contact.*;
 
@@ -98,29 +97,6 @@ public class NoteTestHelper extends HibernateUtil {
         return newNotes;
     }
 
-    protected static NoteBase addTestNote(NoteOrganizer main) {
-        NoteBase testNote = createGenericTestNote();
-        main.addNote(testNote);
-        return testNote;
-    }
-
-    protected static List<NoteBase> persistNewTestNotes(int noteCount, NoteOrganizer main) {
-        List<NoteBase> newNotes = new ArrayList<>(noteCount);
-        // ToDo: Use index in note name?
-        for (int i = 0; i < noteCount; i++) {
-            newNotes.add(createGenericTestNote());
-        }
-        main.addNotes(newNotes);
-        return newNotes;
-    }
-
-    public static Set<String> getCategories(NoteOrganizer main) {
-        return main.getCategories();
-    }
-
-    public static int numberOfCategories(NoteOrganizer main) {
-        return getCategories(main).size();
-    }
 
     public static void commitTestNotesWithNames(List<String> names) {
         for (String name : names) {
@@ -137,6 +113,7 @@ public class NoteTestHelper extends HibernateUtil {
         }
     }
 
+    // Add 5 ScheduleItem notes in non-date order
     public static void createScheduleItemTestBed() {
         trxMgr.runTransaction(testSession -> {
             persistObjectToDB(testSession, new ScheduleItem("Event 4", null, "2020-07-03 10:00:01 AM"));
@@ -147,16 +124,8 @@ public class NoteTestHelper extends HibernateUtil {
         });
     }
 
-    // Add 4 ScheduleItem notes in non-date order (should be automatically sorted)
-    public static void createScheduleItemTestBed(NoteOrganizer main) {
-        main.addNote(new ScheduleItem("Event 4", null, "2020-07-03 10:00:01 AM"));
-        main.addNote(new ScheduleItem("Event 1", null, "2020-07-01 09:00:00 PM"));
-        main.addNote(new ScheduleItem("Event 3", null, "2020-07-03 10:00:00 AM"));
-        main.addNote(new ScheduleItem("Event 2", null, "2020-07-02 05:00:00 PM"));
-        main.addNote(new ScheduleItem("Event 5", null, "2020-07-03 10:00:01 AM"));
-    }
-
     // ToDo: Add negative test case for this (ScheduleItem list out of order)?
+    // ToDo: Update this to read from the DB?
     public static boolean verifyScheduleItemOrder(List<ScheduleItem> schedule) {
         LocalDateTime lastDate = LocalDateTime.MAX;
         for (ScheduleItem item : schedule) {
