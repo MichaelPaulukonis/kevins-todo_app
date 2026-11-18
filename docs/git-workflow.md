@@ -1,82 +1,76 @@
-# Git Playbook: Branch, PR & Merge Workflow
+# Git Workflow: Branches, PRs, and Merges
 
-A simple guide for Kevin and Michael to avoid merge conflicts and keep our repos clean.
+How Kevin and Michael keep upstream and the fork in sync without generating phantom merge conflicts.
 
-## Why Squash-and-Merge Causes Conflicts (The Trap)
+## Why squash-and-merge bites (the stacked-branch trap)
 
-Squash-and-merge is great because it keeps the git history on `main` clean and linear (one commit per PR). However, it has one major catch:
+Squash-and-merge keeps `main` linear, but it breaks git's commit lineage.
 
-When GitHub squash-merges a PR, it compresses all branch commits into a brand new commit with a new SHA on `main`. The original branch commits do not exist on `main`.
+When GitHub squash-merges a PR, it mints a brand-new commit SHA on `main`. The original branch commits vanish from `main`'s history.
 
-Conflicts happen when:
-1. **Stacked branches**: Branch B is created off Branch A before Branch A is merged. When Branch A is squash-merged, `main` gets the new squashed commit. Branch B still has the old commits. When Branch B tries to merge with `main`, Git sees conflicting histories on every file touched in Branch A.
-2. **Branching from stale `main`**: Starting a new feature branch without running `git pull origin main` first.
-3. **Merging locally instead of pulling**: Merging a feature branch into local `main` on your machine instead of pulling the squashed commit down from GitHub.
+This causes conflicts if:
+- **Branches get stacked**: Branch B comes off Branch A before A merges. Once A is squash-merged on GitHub, `main` has the squashed commit, but Branch B still carries A's old commits. When Branch B tries to merge with `main` later, git sees two different sets of commits touching the same lines and calls it a conflict.
+- **Local `main` is stale**: Starting a new feature branch without pulling `main` first.
+- **Merging locally instead of pulling**: Merging the feature branch into local `main` by hand (`git merge my-feature`) instead of pulling down GitHub's squash commit. Local `main` and remote `main` immediately diverge.
 
 ---
 
-## Kevin's Workflow (Upstream Lead)
+## Kevin's side (upstream lead)
 
-### 1. Starting a Feature Branch
-Always start from an up-to-date `main`:
+### Starting work
+Always branch off fresh `main`:
 ```bash
 git checkout main
 git pull origin main
 git checkout -b my-feature
 ```
 
-### 2. PR and Merge on GitHub
-- Push branch and open PR against `main`.
-- Review and discuss.
-- Click **Squash and merge** on GitHub.
-- Delete the remote branch on GitHub after merging.
-
-### 3. Wrapping Up Locally
-Immediately update local `main` from GitHub and delete the local feature branch:
+### Landing the PR
+1. Open the PR and review.
+2. Click **Squash and merge** on GitHub, then delete the remote branch on GitHub.
+3. Update local `main` and delete the local branch:
 ```bash
 git checkout main
 git pull origin main
 git branch -d my-feature
 ```
-Never run `git merge my-feature` into local `main`.
+Don't run `git merge my-feature` locally. Pull the squash commit down.
 
-### 4. Rule on Stacked Work
-Avoid branching from an unmerged feature branch. Wait for the PR to squash-merge into `main`, pull `main`, then start the next branch. If you must start before review is done, treat the second branch as an extension and do not merge `main` into it until the first PR lands and you can rebase onto fresh `main`.
+### Stacked branches
+Avoid branching from an unmerged feature branch. Wait for it to land, pull `main`, then start the next piece. If you have to start early, wait until the first PR merges before touching `main` on the second branch, then rebase onto fresh `main` (`git rebase --onto main branch-a branch-b`).
 
 ---
 
-## Michael's Workflow (Fork Collaborator)
+## Michael's side (fork collaborator)
 
-Michael maintains a fork (`MichaelPaulukonis/kevins-todo_app`) with local agent configurations (`AGENTS.md`, `.agents/`, `GEMINI.md`).
+Michael works from a fork (`MichaelPaulukonis/kevins-todo_app`) with local agent rules (`AGENTS.md`, `.agents/`, `GEMINI.md`).
 
-### 1. Contributing Code / PRs to Kevin
-Never branch off your fork's `main` to create a PR for Kevin. Always branch directly from `upstream/main`:
+### Contributing PRs to Kevin
+Never branch off the fork's `main` for upstream PRs. Branch directly off `upstream/main` so Kevin's PRs don't inherit local agent files or fork merge commits:
 ```bash
 git fetch upstream
 git checkout -b my-feature upstream/main
-# work, commit, push to origin
 git push origin my-feature
-# open PR from my-feature -> kkraft714:main
+# open PR against kkraft714:main
 ```
-This guarantees Kevin's PR has zero fork baggage or merge commits.
 
-### 2. Reviewing Kevin's PRs
-Fetch the PR directly into a clean tracking branch:
+### Reviewing Kevin's PRs
+Pull the PR directly into an isolated branch:
 ```bash
 git fetch upstream pull/<N>/head:pr-<N>
 git checkout pr-<N>
 ```
-Test and review on this clean branch. When done:
+Test and review there. When done, switch back and delete it:
 ```bash
 git checkout main
 git branch -D pr-<N>
 ```
 
-### 3. Syncing the Fork's `main`
-To keep your working tree up to date with Kevin's latest code:
+### Syncing the fork's `main`
+To bring Kevin's latest code into the fork:
 ```bash
 git checkout main
 git pull --no-rebase upstream main
 git push origin main
 ```
-Merge commits on your fork's `main` are completely fine and expected because your fork carries local agent docs.
+Merge commits on the fork's `main` are normal here (it carries local agent docs).
