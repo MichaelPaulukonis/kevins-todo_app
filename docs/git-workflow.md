@@ -2,7 +2,7 @@
 
 How Kevin and Michael keep upstream and the fork in sync without generating phantom merge conflicts.
 
-## Why squash-and-merge bites (the stacked-branch trap)
+## Why squash-and-merge causes conflicts (the stacked-branch trap)
 
 Squash-and-merge keeps `main` linear, but it breaks git's commit lineage.
 
