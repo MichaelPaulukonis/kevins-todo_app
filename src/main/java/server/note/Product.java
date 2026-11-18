@@ -1,8 +1,6 @@
 package server.note;
 
 import jakarta.persistence.*;
-import org.hibernate.search.engine.backend.types.ObjectStructure;
-import org.hibernate.search.mapper.pojo.mapping.definition.annotation.IndexedEmbedded;
 import server.categories.Category;
 import server.categories.MediaType;
 import server.element.Price;
@@ -16,7 +14,6 @@ public class Product extends Note {
     @JoinColumn(name = "owner_id")
     private Entity owner;
     @Embedded
-    @IndexedEmbedded(structure = ObjectStructure.NESTED)
     private Category type;
     private Price productPrice;
 

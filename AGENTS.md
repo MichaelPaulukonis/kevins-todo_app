@@ -6,6 +6,7 @@ Shared rulebook for every coding agent in this repo (Claude Code, Codex, Antigra
 
 1. Run `bd prime` before touching anything. Claude Code does this via hook; other agents must run it themselves.
 2. `bd ready`, pick a bead, `bd update <id> --claim`.
+3. In sandboxed agents (Antigravity, Codex), prefix local `bd` commands with `DOLT_ROOT_PATH=/tmp` so embedded Dolt doesn't fail with `EPERM` on `~/.dolt/config_global.json`. Only `bd dolt push`/`pull`, `git fetch`/`push`, and `gh` need to run outside the sandbox (try sandboxed first, then retry one command at a time).
 
 ## Before You Stop (Handoff)
 

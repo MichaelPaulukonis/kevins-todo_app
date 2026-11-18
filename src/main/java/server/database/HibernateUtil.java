@@ -1,9 +1,7 @@
 package server.database;
 
+import jakarta.persistence.criteria.*;
 import org.hibernate.*;
-import org.hibernate.search.backend.lucene.LuceneExtension;
-import org.hibernate.search.engine.search.predicate.SearchPredicate;
-import org.hibernate.search.mapper.orm.Search;
 import org.jspecify.annotations.NonNull;
 import server.SearchCriteria;
 import server.categories.Category;
@@ -53,20 +51,20 @@ public class HibernateUtil {
         // Currently we assume a PostgreSQL DB
         config.setProperty("hibernate.connection.driver_class", "org.postgresql.Driver");
         config.setProperty("hibernate.current_session_context_class", "thread");
-        // Highly recommended for debugging your first test (ToDo: put under a DEBUG flag?)
-        // config.setProperty("hibernate.show_sql", "true");
-        // config.setProperty("hibernate.format_sql", "true");
-        config.setProperty("logging.level.org.hibernate.search.query", "DEBUG");
-        config.setProperty("logging.level.org.hibernate.search.backend.lucene.query", "DEBUG");
+        boolean sqlDebug = false;    // ToDo: Make this a configuration parameter
+        if (sqlDebug) {
+            config.setProperty("hibernate.show_sql", "true");
+            config.setProperty("hibernate.format_sql", "true");
+            config.setProperty("logging.level.org.hibernate.orm.jdbc.bind", "trace");
+        }
         trySettingConfigFromEnvironment(config, isTestDB);
         if (isTestDB) {
             // ToDo: Confirm we are NOT pointing at the production DB here!
-            // Create and drop the DB for each test run
+            //  - confirm that DB name includes "test"?
+            // This is required to avoid lazily initialization errors in the test code
             config.setProperty("hibernate.enable_lazy_load_no_trans", "true");
+            // Create and drop the DB for each test run
             config.setProperty("hibernate.hbm2ddl.auto", "create-drop");
-            // Cache the Lucene search results in memory instead of on disk
-            // ToDo: Might not need this
-            config.setProperty("hibernate.search.backend.directory.type", "local-heap");
         }
         else {
             String hbm2ddlAuto = config.getProperty("hibernate.hbm2ddl.auto");
@@ -138,6 +136,9 @@ public class HibernateUtil {
         });
     }
 
+    // ToDo: Add query for returning ScheduleItems in timestamp order
+    // public List<ScheduleItem> retrieveScheduleFromDB() { }
+
     // ToDo: Rewrite categoryExists()
 
     public static void persistObjectToDB(Session session, Object obj) {
@@ -169,59 +170,44 @@ public class HibernateUtil {
         });
     }
 
-/*
-    // This is cleaner than the direct DB search but, according to Gemini, much slower and more error-prone
-    // (although it did pass all the search tests)
-    public static List<? extends NoteBase> findMatchingNotesInDB(SearchCriteria criteria) {
-        List<NoteBase> result = new ArrayList<>();
-        trxMgr.runTransaction(session -> {
-            // LOG.info("Found {} matching notes in DB for criteria: {}", result.size(), criteria);
-            var classMatch = Search.session(session).search(criteria.getNoteClass())
-                    .where(TypedSearchPredicateFactory::matchAll).fetchAllHits();
-            result.addAll(classMatch.stream().filter(criteria::match).collect(Collectors.toSet()));
-        });
-        return result;
-    }
-*/
-
-    // ToDo: If I'm desperate I could just load the Notes from the DB and search in memory
-    // ToDo: Can I use the NoteBase hasCategory(), hasAllCategories(), and hasAnyCategory() methods here?
-    // ToDo: The name search is currently case-sensitive (make it case-insensitive?)
     // Note: getNoteClass() automatically includes subclasses in the search result due to the SINGLE_TABLE model
-    public static List<? extends NoteBase> findMatchingNotesInDB(SearchCriteria criteria) {
-        // Extracted query variable for debugging and added .extension(LuceneExtension.get())
-        // System.out.println("Criteria class = " + criteria.getNoteClass());
+    public static <T extends NoteBase> List<T> findMatchingNotesInDB(SearchCriteria criteria) {
         return trxMgr.runTransaction(session -> {
-            var searchQuery = Search.session(session).search(criteria.getNoteClass()).extension(LuceneExtension.get()).where(
-                    factory -> factory.bool().with(predicate -> {
-                if (isSet(criteria.getNameMatch())) {
-                    var namePredicate = criteria.isPatternMatch()
-                            ? factory.regexp().field("name").matching(criteria.getNamePattern())
-                            : factory.wildcard().field("name").matching("*" + criteria.getNameMatch() + "*");
+            CriteriaBuilder cb = session.getCriteriaBuilder();
+            @SuppressWarnings("unchecked")
+            Class<T> targetClass = (Class<T>) criteria.getNoteClass();
 
-                    predicate.must(namePredicate.toPredicate());
+            CriteriaQuery<T> cq = cb.createQuery(targetClass);
+            Root<T> root = cq.from(targetClass);
+            List<Predicate> predicates = new ArrayList<>();
+
+            if (isSet(criteria.getNameMatch())) {    // 1. Name filter (Substring or Regex)
+                if (criteria.isPatternMatch()) {
+                    // Uses database regex function (syntax varies slightly by DB, e.g., REGEXP_LIKE in Oracle/MySQL/H2/Postgres)
+                    predicates.add(cb.isTrue(
+                            cb.function("REGEXP_LIKE", Boolean.class, root.get("name"), cb.literal(criteria.getNamePattern()))
+                    ));
+                } else {
+                    // Standard case-insensitive LIKE '%match%'
+                    predicates.add(cb.like(cb.lower(root.get("name")), criteria.getSQLNameMatch()));
                 }
-                if (criteria.hasCategories()) {
-                    List<SearchPredicate> categoryPredicates = criteria.getCategories().stream().map(cat -> factory.match()
-                            .field("categories.categoryName").matching(cat.getName()).toPredicate()).toList();
-                    if (criteria.isJoinWithAnd()) {
-                        categoryPredicates.forEach(predicate::must);
-                    } else {
-                        predicate.must(factory.bool().with(b -> {
-                            categoryPredicates.forEach(b::should);
-                            b.minimumShouldMatchNumber(1);
-                        }));
+            }
+
+            // 2. Category filter (AND vs OR)
+            if (criteria.hasCategories()) {
+                if (criteria.isJoinWithAnd()) {
+                    for (String catName : criteria.getCategoryNames()) {   // Must match ALL specified categories
+                        Join<T, Category> catJoin = root.join("categories");
+                        predicates.add(cb.equal(catJoin.get("categoryName"), catName));
                     }
+                } else {
+                    // Must match AT LEAST ONE category
+                    predicates.add(root.join("categories").get("categoryName").in(criteria.getCategoryNames()));
                 }
-                // If name and categories aren't set just match all class hits (defaulting to NoteBase)
-                if (!isSet(criteria.getNameMatch()) && criteria.getCategories().isEmpty()) {
-                    predicate.must(factory.matchAll());
-                }
-            })).toQuery();
-            System.out.println("=== GENERATED NATIVE LUCENE QUERY ===");
-            System.out.println(searchQuery.queryString());
-            System.out.println("=====================================");
-            return new ArrayList<>(searchQuery.fetchAllHits());
+            }
+            // Apply all predicates (if empty, it automatically matches all rows of targetClass)
+            cq.select(root).distinct(true).where(predicates.toArray(new Predicate[0]));
+            return session.createQuery(cq).getResultList();
         });
     }
 
