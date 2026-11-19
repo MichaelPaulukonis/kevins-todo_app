@@ -45,6 +45,7 @@ public class SearchCriteria {
     public SearchCriteria doPatternMatch() { return setDoPatternMatch(true); }
     public SearchCriteria setCompleted(boolean value) { this.completed = value; return this; }
     public SearchCriteria isCompleted() { return setCompleted(true); }
+    public boolean completed() { return this.completed; }   // ToDo: May not need this?
 
     public String getNameMatch() { return nameMatch; }
     // Pre-processed for SQL LIKE queries

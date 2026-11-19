@@ -25,6 +25,7 @@ public class Entity extends Note {
 
     public EntityType getType() { return type; }
 
+    // ToDo: Override equals() for non-identity comparison?
     @Override
     public String toString() {
         String result = type.toString() + ": " + name;

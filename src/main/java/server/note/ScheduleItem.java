@@ -29,9 +29,11 @@ public class ScheduleItem extends Note {
 
     protected ScheduleItem() {}   // No-arg constructor required by Hibernate
 
+    // ToDo: Make setDate() and setStatus() fluent builder-type methods?
     public LocalDateTime getDate() { return date; }
     public void setDate(LocalDateTime newDate) { this.date = newDate; }
     public void setDate(String dateString) { this.date = convertToDate(dateString); }
+    // ToDo: Add a version strictly for dates (that adds "00:00:00 a" at the end)?
     public static LocalDateTime convertToDate(String dateString) { return LocalDateTime.parse(dateString, dateFormat); }
 
     public CompletionStatus getStatus() { return status; }

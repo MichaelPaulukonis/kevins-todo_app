@@ -6,10 +6,8 @@ import server.categories.Category;
 import server.element.*;
 import server.note.*;
 
-import java.util.Arrays;
-import java.util.HashSet;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Set;
 
 import static server.NoteTestHelper.*;
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,17 +23,11 @@ import static org.junit.jupiter.api.Assertions.*;
 
 // ToDo: Move into server.database package?
 // ToDo: Add test for a 3-level note (i.e. a note with a child note that has a child)
-// ToDo: Add tests for notes with one or more categories
-// ToDo: Test removing Category from note (verify by searching for updated note)
 // ToDo: Add Contact test with multiple Addresses, Phones, and, Emails (and assertEquals() on full lists)
-// ToDo: Add tests for setting the completed property in ScheduleItem
 // ToDo: Add DB configuration tests (combinations of config files and environment variables)
 //  - Test non-existent config file
 // ToDo: Try adding a duplicate category (looks like it's currently allowed)
-// ToDo: Test deleting one child note from a list of multiple
 // ToDo: Test cascading deletes (deleting parent entity also deletes children)
-// ToDo: Add tests for CRUD operations on each entity type (Note, Contact, MediaItem, etc.)
-// ToDo: Add deletion tests
 // ToDo: Add tests for Note ordering
 // ToDo: Come up with some negative tests (null Note, etc.)
 public class DBSanityTest extends TestBase {
@@ -54,6 +46,7 @@ public class DBSanityTest extends TestBase {
     @Test
     public void createSimpleNote() {
         NoteBase simpleNote = getSimpleNote();
+        // ToDo: Can I replace all calls to commitAndRetrieveTestNote() with commitNoteToDB()?
         NoteBase fetchedNote = commitAndRetrieveTestNote(simpleNote);
         assertEquals(simpleNote.getName(), fetchedNote.getName(), "Simple Note name");
     }
@@ -150,9 +143,7 @@ public class DBSanityTest extends TestBase {
         person.addPhoneNumber("775-3433", Phone.PhoneType.HOME);
         person.addEmail("user1@gmail.com", Email.EmailType.PERSONAL);
         Contact fetchedNote = commitAndRetrieveTestNote(person);
-        assertEquals(1, fetchedNote.getAddresses().size(), "Number of addresses");
-        assertEquals(1, fetchedNote.getPhoneNumbers().size(), "Number of Phone numbers");
-        assertEquals(1, fetchedNote.getEmails().size(), "Number of Emails");
+        assertContactHasExpectedNumberOfAddressesPhoneNumbersAndEmails(1, fetchedNote);
     }
 
     @Test
@@ -200,7 +191,100 @@ public class DBSanityTest extends TestBase {
         assertEquals(expectedCount, fetchedNotes.size(), "Number of notes created");
     }
 
-    // ToDo: Add tests for updating notes and convert deletion tests, below
+    @Test
+    public void updateSimpleNote() {
+        String newNoteName = "New note name";
+        String newDescription = "New note description";
+        NoteBase fetchedNote = commitNoteToDB(getSimpleNote());
+        assertNotNull(fetchedNote, "Note added to DB");
+        fetchedNote.setName(newNoteName).setDescription(newDescription).setCompleted();
+        fetchedNote = commitNoteToDB(fetchedNote);
+        assertEquals(newNoteName, fetchedNote.getName(), "Updated Note name");
+        assertEquals(newDescription, fetchedNote.getDescription(), "Updated Note description");
+        assertTrue(fetchedNote.isCompleted(), "Updated Note completion status");
+    }
+
+    @Test
+    public void updateProduct() {
+        Product fetchedNote = commitNoteToDB(getTestProduct());
+        assertNotNull(fetchedNote, "Note added to DB");
+        Category newProductType = Category.of("New type");
+        Entity newProductOwner = new Entity("New owner name", "", Entity.EntityType.PERSON);
+        Price newProductPrice = new Price(19.99);
+        fetchedNote.setType(newProductType).setOwner(newProductOwner).setPrice(newProductPrice);
+        fetchedNote = commitNoteToDB(fetchedNote);
+        assertEquals(newProductType, fetchedNote.getType(), "Product type");
+        assertEquals(newProductOwner.getName(), fetchedNote.getOwner().getName(), "Product owner");
+        assertEquals(newProductPrice, fetchedNote.getPrice(), "Product price");
+    }
+
+    @Test
+    public void updateScheduleItem() {
+        ScheduleItem fetchedNote = commitNoteToDB(getTestScheduleItem());
+        assertNotNull(fetchedNote, "Note added to DB");
+        LocalDateTime newDate = ScheduleItem.convertToDate("1961-07-06 00:00:00 AM");
+        ScheduleItem.CompletionStatus newStatus = ScheduleItem.CompletionStatus.CANCELED;
+        fetchedNote.setDate(newDate);
+        fetchedNote.setStatus(newStatus);
+        fetchedNote = commitNoteToDB(fetchedNote);
+        assertEquals(newDate, fetchedNote.getDate(), "New date");
+        assertEquals(newStatus, fetchedNote.getStatus(), "New status");
+        // ToDo: Confirm that getSchedule() query returns the Note?
+    }
+
+    @Test
+    public void updateChildNotes() {
+        Note fetchedNote = commitNoteToDB(getTestNote());
+        assertNotNull(fetchedNote, "Note added to DB");
+        assertEquals(0, fetchedNote.getChildNotes().size(), "Number of child notes");
+        fetchedNote.addChildNote(new Note("Child Note 1")).addChildNote(new Note("Child Note 2"));
+        fetchedNote = commitNoteToDB(fetchedNote);
+        assertEquals(2, fetchedNote.getChildNotes().size(), "Number of child notes");
+        NoteBase childNote1 = fetchedNote.getChildNotes().getFirst();    // Need to get managed version
+        fetchedNote.removeChildNote(childNote1);
+        fetchedNote = commitNoteToDB(fetchedNote);
+        assertEquals(1, fetchedNote.getChildNotes().size(), "Number of child notes");
+    }
+
+    @Test
+    public void updateCategories() {
+        NoteBase fetchedNote = commitNoteToDB(getSimpleNote());
+        assertEquals(0, fetchedNote.getCategories().size(), "Number of categories");
+        fetchedNote = commitNoteToDB(fetchedNote.addCategories(testCategories));
+        assertEquals(2, fetchedNote.getCategories().size(), "Number of categories");
+        fetchedNote.getCategories().remove(fetchedNote.getCategories().stream().toList().getFirst());
+        fetchedNote = commitNoteToDB(fetchedNote);
+        assertEquals(1, fetchedNote.getCategories().size(), "Number of categories");
+    }
+
+    @Test
+    public void updateLinks() {
+        Note fetchedNote = new Note("Note with Links").addLink(getGoogleLink());
+        assertEquals(1, fetchedNote.getLinks().size(), "Number of links");
+        fetchedNote.getLinks().removeFirst();
+        fetchedNote = commitNoteToDB(fetchedNote);
+        assertEquals(0, fetchedNote.getLinks().size(), "Number of links");
+    }
+
+    @Test
+    public void updateBusiness() {
+        Contact fetchedNote = commitNoteToDB(Contact.newBusiness("Company1", "New Company"));
+        assertContactHasExpectedNumberOfAddressesPhoneNumbersAndEmails(0, fetchedNote);
+        fetchedNote.addAddress(new Address().setAddress1("123 4th St.").setCity("Menlo Park"));
+        fetchedNote.addPhoneNumber("775-3433", Phone.PhoneType.HOME);
+        fetchedNote.addEmail("user1@gmail.com", Email.EmailType.PERSONAL);
+        fetchedNote = commitNoteToDB(fetchedNote);
+        assertContactHasExpectedNumberOfAddressesPhoneNumbersAndEmails(1, fetchedNote);
+        fetchedNote.getAddresses().removeFirst();
+        fetchedNote.getPhoneNumbers().removeFirst();
+        fetchedNote.getEmails().removeFirst();
+        fetchedNote = commitNoteToDB(fetchedNote);
+        assertContactHasExpectedNumberOfAddressesPhoneNumbersAndEmails(0, fetchedNote);
+    }
+
+    // Todo: Update tests:
+    //  - Test adding child notes at index?
+    // ToDo: Convert deletion tests, below
 
     // @Test
     public void removeOnlyNoteFromDB() {

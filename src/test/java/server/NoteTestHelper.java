@@ -10,6 +10,7 @@ import server.note.*;
 import java.time.LocalDateTime;
 import java.util.*;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static server.note.Contact.*;
 
 public class NoteTestHelper extends HibernateUtil {
@@ -100,7 +101,7 @@ public class NoteTestHelper extends HibernateUtil {
 
     public static void commitTestNotesWithNames(List<String> names) {
         for (String name : names) {
-            commitObjectToDB(new Note(name));
+            commitNoteToDB(new Note(name));
         }
     }
 
@@ -109,19 +110,17 @@ public class NoteTestHelper extends HibernateUtil {
         for (int i = 0; i < numberOfNotes; i++) {
             Set<Category> testCats = categories == null ?
                     Set.of(Category.of(MediaType.get().getRandomTag())) : categories;
-            commitNoteWithCategories(NoteTestHelper.createGenericTestNote(), testCats);
+            commitNoteToDB(NoteTestHelper.createGenericTestNote().addCategories(testCats));
         }
     }
 
     // Add 5 ScheduleItem notes in non-date order
     public static void createScheduleItemTestBed() {
-        trxMgr.runTransaction(testSession -> {
-            persistObjectToDB(testSession, new ScheduleItem("Event 4", null, "2020-07-03 10:00:01 AM"));
-            persistObjectToDB(testSession, new ScheduleItem("Event 1", null, "2020-07-01 09:00:00 PM"));
-            persistObjectToDB(testSession, new ScheduleItem("Event 3", null, "2020-07-03 10:00:00 AM"));
-            persistObjectToDB(testSession, new ScheduleItem("Event 2", null, "2020-07-02 05:00:00 PM"));
-            persistObjectToDB(testSession, new ScheduleItem("Event 5", null, "2020-07-03 10:00:01 AM"));
-        });
+        commitNoteToDB(new ScheduleItem("Event 4", null, "2020-07-03 10:00:01 AM"));
+        commitNoteToDB(new ScheduleItem("Event 1", null, "2020-07-01 09:00:00 PM"));
+        commitNoteToDB(new ScheduleItem("Event 3", null, "2020-07-03 10:00:00 AM"));
+        commitNoteToDB(new ScheduleItem("Event 2", null, "2020-07-02 05:00:00 PM"));
+        commitNoteToDB(new ScheduleItem("Event 5", null, "2020-07-03 10:00:01 AM"));
     }
 
     // ToDo: Add negative test case for this (ScheduleItem list out of order)?
@@ -176,6 +175,12 @@ public class NoteTestHelper extends HibernateUtil {
         return Contact.newBusiness("Business#" + businessNumber, "Description for business #" + businessNumber++);
     }
 
+    public static void assertContactHasExpectedNumberOfAddressesPhoneNumbersAndEmails(int expected, Contact contact) {
+        assertEquals(expected, contact.getAddresses().size(), "Number of addresses");
+        assertEquals(expected, contact.getPhoneNumbers().size(), "Number of Phone numbers");
+        assertEquals(expected, contact.getEmails().size(), "Number of Emails");
+    }
+
     public static Link getGoogleLink() {
         return new Link("Google", null, "http://google.com");
     }
@@ -204,9 +209,9 @@ public class NoteTestHelper extends HibernateUtil {
         return newNotes;
     }
 
+    // ToDo: Replace this with commitNoteToDB()?
     public static <T extends NoteBase> T commitAndRetrieveTestNote(T note) {
-        commitObjectToDB(note);
-        T fetchedNote = retrieveNoteFromDB(note);
+        T fetchedNote = commitNoteToDB(note);
         assert fetchedNote != null : "Failed to fetch " + note.getClass() + " with ID " + note.getId();
         return fetchedNote;
     }

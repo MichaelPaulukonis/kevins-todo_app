@@ -34,17 +34,17 @@ public class Note extends NoteBase {
     // ToDo: Add version that takes Note instead of index?
     public NoteBase getChildNote(int index) { return childNotes.get(index); }
     // We call these from wrapper methods in NoteOrganizer in order to update note tracking
-    public Note addChildNote(NoteBase childNote) {
+    public <T extends NoteBase> Note addChildNote(T childNote) {
         childNote.setParent(this);
         childNotes.add(childNote);
         return this;
     }
     public Note addChildNote(NoteBase childNote, int index) { childNotes.add(index, childNote); return this; }
-    // ToDo: Delete childNote from DB in this case?
-    public NoteBase removeChildNote(NoteBase childNote) {
+    @SuppressWarnings("unchecked")
+    public <T extends NoteBase> T removeChildNote(NoteBase childNote) {
         childNote.setParent(null);
         childNotes.remove(childNote);
-        return childNote;
+        return (T)childNote;
     }
     public Note addLink(Link link) { links.add(link); return this; }
     public List<Link> getLinks() { return links; }
