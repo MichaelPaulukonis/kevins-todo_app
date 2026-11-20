@@ -1,16 +1,19 @@
 package server;
 
 import org.hibernate.SessionFactory;
-import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.junit.jupiter.api.*;
+import server.categories.Category;
+
+import java.util.Set;
 
 import static server.NoteTestHelper.*;
 
 // ToDo: Rename this to DBTestBase?
 // ToDo: Add a static testTrxMgr property in this class (don't need it since it's available in NoteTestHleper)?
 public class TestBase {
-    protected static SessionFactory testSessionFactory;
-    protected static final String defaultCategoryName = "NewCategory";
+    static SessionFactory testSessionFactory;
+    static final String defaultCategoryName = "NewCategory";
+    static final Set<Category> testCategories = Set.of(Category.of("Category1"), Category.of("Category2"));
 
     @BeforeAll
     public static void setUpTestSessionFactory() {

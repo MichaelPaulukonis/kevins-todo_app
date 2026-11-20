@@ -25,8 +25,7 @@ public class SearchTest extends TestBase {
         Category cat = Category.of(MediaType.SONG);
         Note newNote = NoteTestHelper.createGenericTestNote();
         newNote.addCategory(cat);
-        commitObjectToDB(newNote);
-        Note fetchedNote = retrieveNoteFromDB(newNote);
+        Note fetchedNote = commitNoteToDB(newNote);
         SearchCriteria criteria = new SearchCriteria().setCategory(cat);
         List<? extends NoteBase> notes = findMatchingNotesInDB(criteria);
         assertEquals(1, notes.size(), "Number of notes with media type " + cat);
@@ -124,8 +123,7 @@ public class SearchTest extends TestBase {
 
     @Test
     public void getNotesByClass() {
-        Contact contact = newPerson("Jane", "Doe");
-        commitObjectToDB(contact);
+        Contact contact = commitNoteToDB(newPerson("Jane", "Doe"));
         commitAndRetrieveTestNotes(3);
         SearchCriteria criteria = new SearchCriteria().setNoteClass(Contact.class);
         List<? extends NoteBase> result = findMatchingNotesInDB(criteria);
@@ -155,11 +153,8 @@ public class SearchTest extends TestBase {
     @Test
     public void getMatchingChildNoteOfNonMatchingParent() {
         String mediaType = MediaType.SONG.toString();
-        Note parent = new Note("Parent");
-        Note child = new Note("Child");
-        child.addCategory(mediaType);
-        parent.addChildNote(child);
-        commitObjectToDB(parent);
+        NoteBase child = commitNoteToDB(new Note("Child").addCategory(mediaType));
+        commitNoteToDB(new Note("Parent").addChildNote(child));
         SearchCriteria criteria = new SearchCriteria().setCategory(mediaType);
         assertEquals(List.of(child), findMatchingNotesInDB(criteria), "Child notes searched");
     }
@@ -168,7 +163,7 @@ public class SearchTest extends TestBase {
     public void getNotesByNameAndClass() {
         createScheduleItemTestBed();
         String name = "Test Name 1";
-        commitObjectToDB(new ScheduleItem(name, null, "2020-07-01 09:00:00 PM"));
+        commitNoteToDB(new ScheduleItem(name, null, "2020-07-01 09:00:00 PM"));
         SearchCriteria criteria = new SearchCriteria().setNoteClass(ScheduleItem.class).setNameMatch(name);
         assertEquals(1, findMatchingNotesInDB(criteria).size(),
                 "Number of ScheduleItem notes with name '" + name + "'");
@@ -205,19 +200,13 @@ public class SearchTest extends TestBase {
                     "Number of notes with categories and name matching pattern '" + pattern + "'");
     }
 
-    static final Set<Category> testCategories = Set.of(Category.of("Category1"), Category.of("Category2"));
     static final String baseName = "Event";
     @Test
     public void getNotesByNameClassAndCategory() {
-        createScheduleItemTestBed();   // These Notes have no category assigned
-        // ToDo: It would be really nice to have some kind of generic Note creation factory
-        //  - For now just create ScheduleItem notes in memory, add the categories, and then commit
-        ScheduleItem item6 = new ScheduleItem(baseName + " 6", null, "2020-07-07 09:00:00 PM");
-        commitNoteWithCategories(item6, testCategories);
-        ScheduleItem item7 = new ScheduleItem(baseName + " 7", null, "2020-07-08 09:00:00 PM");
-        commitNoteWithCategories(item7, Set.of(Category.of("Category1")));
-        ScheduleItem item8 = new ScheduleItem(baseName + " 8", null, "2020-07-09 09:00:00 PM");
-        commitNoteWithCategories(item8, Set.of(Category.of("Category2")));
+        createScheduleItemTestBed();   // This creates 5 ScheduleItem notes with no category assigned
+        commitNoteToDB(new ScheduleItem(baseName + " 6", null, "2020-07-07 09:00:00 PM").addCategories(testCategories));
+        commitNoteToDB(new ScheduleItem(baseName + " 7", null, "2020-07-08 09:00:00 PM").addCategory("Category1"));
+        commitNoteToDB(new ScheduleItem(baseName + " 8", null, "2020-07-09 09:00:00 PM").addCategory("Category2"));
         // This does an OR match on categories by default
         SearchCriteria criteria = new SearchCriteria().setNoteClass(ScheduleItem.class)
                 .setCategories(testCategories).setNameMatch(baseName);
@@ -227,16 +216,12 @@ public class SearchTest extends TestBase {
 
     @Test
     public void getNotesByNamePatternClassAndCategory() {
-        createScheduleItemTestBed();
+        createScheduleItemTestBed();   // This creates 5 ScheduleItem notes with no category assigned
         String pattern = "Event \\d";
-        ScheduleItem item6 = new ScheduleItem(baseName + " 6", null, "2020-07-07 09:00:00 PM");
-        commitNoteWithCategories(item6, testCategories);
-        ScheduleItem item7 = new ScheduleItem(baseName + " 7", null, "2020-07-08 09:00:00 PM");
-        commitNoteWithCategories(item7, testCategories);
-        ScheduleItem item8 = new ScheduleItem(baseName + " 8", null, "2020-07-09 09:00:00 PM");
-        commitNoteWithCategories(item8, Set.of(Category.of("Category1")));
-        ScheduleItem item9 = new ScheduleItem(baseName + " 9", null, "2020-07-10 09:00:00 PM");
-        commitNoteWithCategories(item9, Set.of(Category.of("Category2")));
+        commitNoteToDB(new ScheduleItem(baseName + " 6", null, "2020-07-07 09:00:00 PM").addCategories(testCategories));
+        commitNoteToDB(new ScheduleItem(baseName + " 7", null, "2020-07-08 09:00:00 PM").addCategories(testCategories));
+        commitNoteToDB(new ScheduleItem(baseName + " 8", null, "2020-07-09 09:00:00 PM").addCategory("Category1"));
+        commitNoteToDB(new ScheduleItem(baseName + " 9", null, "2020-07-10 09:00:00 PM").addCategory("Category2"));
         // This does an OR match on categories by default
         SearchCriteria criteria = new SearchCriteria().setNoteClass(ScheduleItem.class)
                 .setCategories(testCategories).joinWithAnd().setNameMatch(pattern).doPatternMatch();

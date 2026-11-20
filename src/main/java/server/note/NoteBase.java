@@ -74,8 +74,9 @@ public class NoteBase {
     public NoteBase addCategories(Set<Category> cats) { categories.addAll(cats); return this; }
     public NoteBase removeCategory(String cat) { categories.remove(Category.of(cat)); return this; }
     public LocalDateTime getDateCreated() { return created; }
-    public boolean getCompleted() { return completed != null && completed; }
+    public boolean isCompleted() { return completed != null && completed; }
     public NoteBase setCompleted(boolean isCompleted) { completed = isCompleted; return this; }
+    public NoteBase setCompleted() { return setCompleted(true); }
 
     @SuppressWarnings("EqualsWhichDoesntCheckParameterClass")
     @Override

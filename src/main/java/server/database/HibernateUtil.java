@@ -119,16 +119,7 @@ public class HibernateUtil {
         return false;
     }
 
-    // The methods in this class persist the objects to the DB, and the TransactionManager handles commit/rollback.
-    public static void commitNoteWithCategories(NoteBase note, Set<Category> categories) {
-        trxMgr.runTransaction(session -> {
-            if (!categories.isEmpty()) {
-                note.addCategories(categories);
-            }
-            session.persist(note);
-        });
-    }
-
+    // ToDo: Add retrieveNotesFromDB() to get all Note objects?
     public static Set<Category> retrieveCategoriesFromDB() {
         return trxMgr.runTransaction(session -> {
             return session.createQuery("SELECT DISTINCT c FROM NoteBase n JOIN n.categories c", Category.class)
@@ -138,16 +129,20 @@ public class HibernateUtil {
 
     // ToDo: Add query for returning ScheduleItems in timestamp order
     // public List<ScheduleItem> retrieveScheduleFromDB() { }
-
     // ToDo: Rewrite categoryExists()
 
-    public static void persistObjectToDB(Session session, Object obj) {
-        session.persist(obj);
-        session.flush();
+    public static <T extends NoteBase> T commitNoteToDB(T note) {
+        return trxMgr.runTransaction(session -> { return session.merge(note); });
     }
 
-    public static void commitObjectToDB(Object obj) {
-        trxMgr.runTransaction(session -> { session.persist(obj); });
+    public static void removeNoteFromDB(NoteBase note) {
+        if (note == null || note.getId() == null) { return; }
+        trxMgr.runTransaction(session -> {
+           NoteBase fetchedNote = session.find(NoteBase.class, note.getId());
+           if (fetchedNote != null) {
+               session.remove(fetchedNote);
+           }
+        });
     }
 
     public static Set<NoteBase> retrieveNotesForCategory(Category cat) {
@@ -170,6 +165,7 @@ public class HibernateUtil {
         });
     }
 
+    // ToDo: Add support (and tests) for isCompleted() predicate
     // Note: getNoteClass() automatically includes subclasses in the search result due to the SINGLE_TABLE model
     public static <T extends NoteBase> List<T> findMatchingNotesInDB(SearchCriteria criteria) {
         return trxMgr.runTransaction(session -> {

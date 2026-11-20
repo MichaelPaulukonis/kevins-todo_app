@@ -191,7 +191,6 @@ public class NoteTest {
     }
 
     // ToDo: Test adding and removing more than one of the same kind of element
-    // ToDo: Test adding and removing tags
     // ToDo: Test adding and removing categories (coupled with main program)?
     // ToDo: Test adding tags and categories?
     // ToDo: More negative tests?
